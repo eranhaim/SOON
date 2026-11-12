@@ -1,7 +1,13 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/migrate.ts', 'scripts/grant-admin.ts'],
+  // Named entries keep a flat dist/ (dist/index.js, dist/migrate.js, ...) even though
+  // sources live in different folders — the Dockerfile CMD depends on these paths.
+  entry: {
+    index: 'src/index.ts',
+    migrate: 'src/migrate.ts',
+    'grant-admin': 'scripts/grant-admin.ts',
+  },
   format: ['esm'],
   target: 'node22',
   platform: 'node',
