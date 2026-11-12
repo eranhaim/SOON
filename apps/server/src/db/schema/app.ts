@@ -118,7 +118,13 @@ export const vendor = pgTable(
     categorySlug: text('category_slug')
       .notNull()
       .references(() => category.slug),
-    status: vendorStatusEnum('status').notNull().default('pending'),
+    /** No DB default on purpose: the app always sets it ('draft' on creation). */
+    status: vendorStatusEnum('status').notNull(),
+    /** Reason for rejection / suspension, shown to the vendor. */
+    statusReason: text('status_reason'),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+    reviewedByUserId: text('reviewed_by_user_id').references(() => user.id, { onDelete: 'set null' }),
     about: text('about'),
     phone: text('phone'),
     email: text('email'),
@@ -313,4 +319,20 @@ export const savedVendor = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.weddingId, t.vendorId] })],
+);
+
+// ---------- admin action log (spec §17) ----------
+export const adminAction = pgTable(
+  'admin_action',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    adminUserId: text('admin_user_id').references(() => user.id, { onDelete: 'set null' }),
+    /** One of ADMIN_ACTIONS, e.g. 'vendor.approve'. Text so new actions need no migration. */
+    action: text('action').notNull(),
+    targetType: text('target_type').notNull(),
+    targetId: text('target_id').notNull(),
+    reason: text('reason'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('admin_action_target_idx').on(t.targetType, t.targetId, t.createdAt)],
 );

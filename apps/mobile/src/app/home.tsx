@@ -38,23 +38,22 @@ export default function Home() {
     );
   }
   if (!session) return <Redirect href="/choose-role" />;
+  // Vendors and admins have their own areas.
+  if (role === 'vendor') return <Redirect href="/vendor" />;
+  if (role === 'admin') return <Redirect href="/admin" />;
 
   return (
     <SafeAreaView style={styles.root}>
       <View style={styles.content}>
         <Text variant="caption" color={colors.inkMuted} style={{ letterSpacing: 4 }}>
-          {role === 'vendor' ? 'BUSINESS' : 'SOON'}
+          SOON
         </Text>
-        <Text variant="h1">{role === 'vendor' ? 'בוקר טוב' : 'שלום'}</Text>
+        <Text variant="h1">שלום</Text>
         <Text variant="body" color={colors.inkSoft}>
           {session.user.email}
         </Text>
         <Text variant="bodySmall" color={colors.inkMuted}>
-          {role === 'vendor'
-            ? 'כאן יופיע לוח הבקרה העסקי שלכם.'
-            : role === 'couple'
-              ? 'כאן יופיעו הספירה לאחור, ההשראה וכלי התכנון שלכם.'
-              : 'טוען פרופיל…'}
+          {role === 'couple' ? 'כאן יופיעו הספירה לאחור, ההשראה וכלי התכנון שלכם.' : 'טוען פרופיל…'}
         </Text>
         <Button
           variant="outline"

@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/migrate.ts'],
+  entry: ['src/index.ts', 'src/migrate.ts', 'scripts/grant-admin.ts'],
   format: ['esm'],
   target: 'node22',
   platform: 'node',

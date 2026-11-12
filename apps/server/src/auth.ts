@@ -10,6 +10,10 @@ import { env, isDev } from './env';
 /** Internal code used when AUTH_ACCEPT_ANY_OTP is on. Never shown to users. */
 export const ANY_OTP_CODE = '000000';
 
+export function isAdminEmail(email: string | undefined | null) {
+  return Boolean(email && env.ADMIN_EMAILS.includes(email.trim().toLowerCase()));
+}
+
 /** The app's deep-link scheme (apps/mobile/app.json → expo.scheme). */
 const APP_SCHEME = 'soon://';
 
@@ -46,6 +50,15 @@ export const auth = betterAuth({
       phone: { type: 'string', required: false, input: false },
     },
   },
+  databaseHooks: {
+    user: {
+      create: {
+        // Emails in ADMIN_EMAILS become admins on first sign-in.
+        // (Existing accounts: scripts/grant-admin.ts.)
+        before: async (u) => ({ data: { ...u, role: isAdminEmail(u.email) ? 'admin' : null } }),
+      },
+    },
+  },
   socialProviders,
   plugins: [
     expo(),
@@ -53,8 +66,16 @@ export const auth = betterAuth({
     emailOTP({
       // Dev shortcut: every issued code is the same internal value, and app.ts rewrites
       // whatever the user typed to it — so ANY code signs in. Off unless AUTH_ACCEPT_ANY_OTP=true.
-      ...(env.AUTH_ACCEPT_ANY_OTP ? { generateOTP: () => ANY_OTP_CODE } : {}),
+      // Admin emails are never covered: they always get a real random code.
+      ...(env.AUTH_ACCEPT_ANY_OTP
+        ? { generateOTP: ({ email }: { email: string }) => (isAdminEmail(email) ? undefined : ANY_OTP_CODE) }
+        : {}),
       async sendVerificationOTP({ email, otp, type }) {
+        if (isAdminEmail(email)) {
+          // TODO: email it once a provider is configured. Until then: `docker compose logs server`.
+          console.log(`[auth] ADMIN ${type} code for ${email}: ${otp}`);
+          return;
+        }
         if (env.AUTH_ACCEPT_ANY_OTP) {
           console.log(`[auth] AUTH_ACCEPT_ANY_OTP: any ${type} code will be accepted for ${email}`);
           return;

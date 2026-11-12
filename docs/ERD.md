@@ -39,6 +39,9 @@ erDiagram
     user ||--o{ message : "sends"
     wedding ||--o{ saved_vendor : "saves"
     vendor ||--o{ saved_vendor : "saved by"
+    user |o--o{ vendor : "reviewed"
+    user |o--o{ admin_action : "performed"
+    vendor ||--o{ admin_action : "target (target_type=vendor)"
 
     user {
         text id PK
@@ -100,7 +103,11 @@ erDiagram
         text business_name
         text slug UK
         text category_slug FK
-        vendor_status status "pending | approved | suspended"
+        vendor_status status "draft | pending | approved | rejected | suspended"
+        text status_reason "shown to vendor on reject/suspend"
+        timestamptz submitted_at
+        timestamptz reviewed_at
+        text reviewed_by_user_id FK
         text about
         text phone
         text logo_url
@@ -168,6 +175,15 @@ erDiagram
         text attachment_url
         timestamptz read_at
     }
+    admin_action {
+        uuid id PK
+        text admin_user_id FK
+        text action "vendor.approve | vendor.reject | vendor.suspend | vendor.reinstate"
+        text target_type "vendor"
+        text target_id
+        text reason
+        timestamptz created_at
+    }
     saved_vendor {
         uuid wedding_id PK, FK
         uuid vendor_id PK, FK
@@ -185,6 +201,18 @@ erDiagram
 | `conversation` | `UNIQUE (vendor_id, wedding_id)` | One chat thread per couple–vendor pair. |
 | `availability_entry` | `EXCLUDE ... WHERE status = 'booked'` | No double-booking. |
 | `vendor` | `CHECK (price_from <= price_to)` | A valid price range. |
+| `vendor.status` | No DB default, so the app always sets it (`draft` on creation) | Status changes go only through the approval flow. |
+
+**Vendor approval flow (spec §17)**
+
+```
+draft ──submit──▶ pending ──approve──▶ approved ──suspend──▶ suspended
+                    │                     ▲                     │
+                  reject                  └──────reinstate──────┘
+                    ▼
+                 rejected ──fix & resubmit──▶ pending
+```
+Only `approved` vendors are visible to couples. Every admin decision writes a row to `admin_action` in the same transaction.
 
 ---
 

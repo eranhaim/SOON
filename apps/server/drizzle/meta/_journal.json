@@ -15,6 +15,13 @@
       "when": 1794488671752,
       "tag": "0001_availability_no_double_booking",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794499371598,
+      "tag": "0002_vendor_approval",
+      "breakpoints": true
     }
   ]
 }

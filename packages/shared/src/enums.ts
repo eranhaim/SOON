@@ -6,9 +6,29 @@
 export const USER_ROLES = ['couple', 'vendor', 'admin'] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
-/** Vendor account moderation state (spec §17: admin approves vendors). */
-export const VENDOR_STATUSES = ['pending', 'approved', 'suspended'] as const;
+/**
+ * Vendor moderation lifecycle (spec §17: admin approves vendors).
+ *   draft ──submit──▶ pending ──approve──▶ approved ──suspend──▶ suspended
+ *                       │                     ▲                     │
+ *                     reject                  └──────reinstate──────┘
+ *                       ▼
+ *                    rejected ──fix & resubmit──▶ pending
+ * Only `approved` vendors are visible to couples.
+ */
+export const VENDOR_STATUSES = ['draft', 'pending', 'approved', 'rejected', 'suspended'] as const;
 export type VendorStatus = (typeof VENDOR_STATUSES)[number];
+
+export const VENDOR_STATUS_LABELS: Record<VendorStatus, string> = {
+  draft: 'טיוטה',
+  pending: 'ממתין לאישור',
+  approved: 'מאושר',
+  rejected: 'נדחה',
+  suspended: 'מושעה',
+};
+
+/** Admin moderation actions, recorded in admin_action (spec §17: admin action log). */
+export const ADMIN_ACTIONS = ['vendor.approve', 'vendor.reject', 'vendor.suspend', 'vendor.reinstate'] as const;
+export type AdminAction = (typeof ADMIN_ACTIONS)[number];
 
 /** Availability calendar statuses (spec §5, §11). */
 export const AVAILABILITY_STATUSES = ['available', 'pending', 'booked', 'unavailable'] as const;

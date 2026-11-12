@@ -4,7 +4,7 @@ import { Pressable, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { Text } from '@/components/Text';
-import { authClient } from '@/lib/auth-client';
+import { homeForRole, useSessionUser } from '@/lib/session';
 import { colors, fonts } from '@/theme/tokens';
 
 /**
@@ -13,7 +13,7 @@ import { colors, fonts } from '@/theme/tokens';
  * once the footage exists.
  */
 export default function Intro() {
-  const { data: session, isPending } = authClient.useSession();
+  const { session, role, isPending } = useSessionUser();
   const opacity = useSharedValue(0);
   const fadeIn = useAnimatedStyle(() => ({ opacity: opacity.get() }));
 
@@ -21,11 +21,8 @@ export default function Intro() {
     opacity.set(withTiming(1, { duration: 1400 }));
   }, [opacity]);
 
-  const role = (session?.user as { role?: string | null } | undefined)?.role;
-
   function next() {
-    if (session && role) router.replace('/home');
-    else router.replace('/choose-role');
+    router.replace(session && role ? homeForRole(role) : '/choose-role');
   }
 
   return (

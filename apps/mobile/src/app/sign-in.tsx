@@ -10,6 +10,7 @@ import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
 import { api } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
+import { homeForRole } from '@/lib/session';
 import { colors, hairline, space } from '@/theme/tokens';
 
 type Provider = 'google' | 'apple';
@@ -35,12 +36,14 @@ export default function SignIn() {
       .catch(() => setProviders([]));
   }, []);
 
-  /** After any successful sign-in: persist the chosen role (first time only), then go home. */
+  /** After any successful sign-in: persist the chosen role (first time only), then route by role. */
   async function finish() {
     if (role) {
       await api('/api/me/role', { method: 'POST', json: { role } }).catch(() => undefined);
     }
-    router.replace('/home');
+    const { data } = await authClient.getSession({ query: { disableCookieCache: true } });
+    const current = (data?.user as { role?: UserRole | null } | undefined)?.role ?? role ?? null;
+    router.replace(homeForRole(current));
   }
 
   async function sendCode() {
