@@ -190,7 +190,7 @@ export default function AdminVendorReview() {
 
         {/* Storefront exactly as couples will see it */}
         <View style={{ flexGrow: 2, flexBasis: 420, borderWidth: 1, borderColor: colors.line, paddingBottom: space.lg }}>
-          <VendorPage vendor={vendor} width={560} />
+          <VendorPage vendor={vendor} />
         </View>
       </View>
     </Screen>

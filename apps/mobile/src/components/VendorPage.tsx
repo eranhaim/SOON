@@ -14,13 +14,15 @@ import { colors, hairline, space } from '@/theme/tokens';
 import { Text } from './Text';
 import { Card, Divider, SectionTitle, type IconName } from './ui';
 
-export function VendorPage({ vendor, width }: { vendor: VendorPublicDTO; width?: number }) {
+export function VendorPage({ vendor }: { vendor: VendorPublicDTO }) {
   const window = useWindowDimensions();
-  const pageWidth = Math.min(width ?? window.width, 720);
+  // Measure the real container width (the page can sit in a narrow column, e.g. admin review).
+  const [measured, setMeasured] = useState<number | null>(null);
+  const pageWidth = measured ?? Math.min(window.width, 720);
   const priceRange = formatPriceRange(vendor.priceFromAgorot, vendor.priceToAgorot);
 
   return (
-    <View style={{ width: '100%' }}>
+    <View style={{ width: '100%' }} onLayout={(e) => setMeasured(Math.round(e.nativeEvent.layout.width))}>
       {/* Hero */}
       <View style={[styles.hero, { height: Math.round(pageWidth * 0.62) }]}>
         {vendor.coverUrl ? (
