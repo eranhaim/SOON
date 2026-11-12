@@ -12,7 +12,7 @@ import { errorMessage } from '@/lib/api';
 import { confirm, notify } from '@/lib/confirm';
 import { pickImages, uploadImage } from '@/lib/upload';
 import { useOwnVendor } from '@/lib/vendor-context';
-import { colors, hairline, space } from '@/theme/tokens';
+import { atEnd, colors, hairline, space } from '@/theme/tokens';
 
 const MAX_GALLERY = 60;
 
@@ -177,8 +177,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  tileTools: { position: 'absolute', top: 6, end: 6 },
-  tileMove: { position: 'absolute', bottom: 6, start: 6, end: 6, flexDirection: 'row', justifyContent: 'space-between' },
+  tileTools: { position: 'absolute', top: 6, ...atEnd(6) },
+  tileMove: { position: 'absolute', bottom: 6, left: 6, right: 6, flexDirection: 'row', justifyContent: 'space-between' },
   addTile: {
     borderWidth: hairline,
     borderStyle: 'dashed',

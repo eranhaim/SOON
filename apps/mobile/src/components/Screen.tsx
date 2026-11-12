@@ -106,6 +106,6 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, alignItems: 'center' },
   content: { width: '100%', padding: space.lg, gap: space.lg, paddingBottom: space.xxxl },
   header: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 44 },
-  back: { padding: space.xs, marginStart: -space.xs },
+  back: { padding: space.xs },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
 });

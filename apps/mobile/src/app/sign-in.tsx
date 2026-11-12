@@ -13,6 +13,8 @@ import { authClient } from '@/lib/auth-client';
 import { homeForRole } from '@/lib/session';
 import { colors, hairline, space } from '@/theme/tokens';
 
+const TOO_MANY = 'יותר מדי ניסיונות. נסו שוב בעוד דקה.';
+
 type Provider = 'google' | 'apple';
 const PROVIDER_LABEL: Record<Provider, string> = {
   google: 'המשך עם Google',
@@ -51,7 +53,7 @@ export default function SignIn() {
     setBusy(true);
     const { error: err } = await authClient.emailOtp.sendVerificationOtp({ email: email.trim(), type: 'sign-in' });
     setBusy(false);
-    if (err) return setError('לא הצלחנו לשלוח קוד. בדקו את כתובת האימייל.');
+    if (err) return setError(err.status === 429 ? TOO_MANY : 'לא הצלחנו לשלוח קוד. בדקו את כתובת האימייל.');
     setStep('code');
   }
 
@@ -60,7 +62,7 @@ export default function SignIn() {
     setBusy(true);
     const { error: err } = await authClient.signIn.emailOtp({ email: email.trim(), otp: otp.trim() });
     setBusy(false);
-    if (err) return setError('הקוד שגוי או שפג תוקפו.');
+    if (err) return setError(err.status === 429 ? TOO_MANY : 'הקוד שגוי או שפג תוקפו.');
     await finish();
   }
 

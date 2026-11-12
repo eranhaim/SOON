@@ -63,3 +63,15 @@ export const type = {
 } as const satisfies Record<string, TextStyle>;
 
 export type TypeVariant = keyof typeof type;
+
+/**
+ * Logical "start"/"end" for absolutely positioned elements and borders.
+ * Native (forcesRTL) flips start/end itself; react-native-web maps them as LTR even
+ * under <html dir="rtl">, so on web we use the physical side: start = right.
+ */
+const isWeb = Platform.OS === 'web';
+export const atStart = (n: number) => (isWeb ? { right: n } : { start: n });
+export const atEnd = (n: number) => (isWeb ? { left: n } : { end: n });
+export const borderAtStart = (width: number, color: string) =>
+  isWeb ? { borderRightWidth: width, borderRightColor: color } : { borderStartWidth: width, borderStartColor: color };
+export const padAtStart = (n: number) => (isWeb ? { paddingRight: n } : { paddingStart: n });

@@ -7,7 +7,7 @@ import { getVendorReadiness, isVendorReady, type VendorOwnerDTO } from '@soon/sh
 import { errorMessage } from '@/lib/api';
 import { formatDate } from '@/lib/dates';
 import { useVendor } from '@/lib/vendor-context';
-import { colors, space } from '@/theme/tokens';
+import { borderAtStart, colors, padAtStart, space } from '@/theme/tokens';
 
 import { Button } from './Button';
 import { Text } from './Text';
@@ -65,7 +65,7 @@ export function VendorStatusCard({ vendor }: { vendor: VendorOwnerDTO }) {
         </Text>
       </View>
       {vendor.statusReason && (vendor.status === 'rejected' || vendor.status === 'suspended') ? (
-        <View style={{ borderStartWidth: 2, borderStartColor: colors.danger, paddingStart: space.md, gap: 2 }}>
+        <View style={{ ...borderAtStart(2, colors.danger), ...padAtStart(space.md), gap: 2 }}>
           <Text variant="caption" color={colors.inkMuted}>
             הערת הצוות
           </Text>

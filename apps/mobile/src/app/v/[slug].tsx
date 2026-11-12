@@ -10,7 +10,7 @@ import { Text } from '@/components/Text';
 import { VendorPage } from '@/components/VendorPage';
 import { IconButton } from '@/components/ui';
 import { api, ApiError } from '@/lib/api';
-import { colors, space } from '@/theme/tokens';
+import { atStart, colors, space } from '@/theme/tokens';
 
 /** Public vendor page: /v/<slug>. With ?preview=1 it's the vendor's own preview (spec §9). */
 export default function VendorPublic() {
@@ -65,7 +65,7 @@ export default function VendorPublic() {
       ) : null}
       <View>
         <VendorPage vendor={vendor} />
-        <View style={{ position: 'absolute', top: space.md, start: space.md }}>
+        <View style={{ position: 'absolute', top: space.md, ...atStart(space.md) }}>
           <IconButton
             icon="chevron-right"
             label="חזרה"
