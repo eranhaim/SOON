@@ -7,6 +7,9 @@ import { db } from './db';
 import * as schema from './db/schema';
 import { env, isDev } from './env';
 
+/** Internal code used when AUTH_ACCEPT_ANY_OTP is on. Never shown to users. */
+export const ANY_OTP_CODE = '000000';
+
 /** The app's deep-link scheme (apps/mobile/app.json → expo.scheme). */
 const APP_SCHEME = 'soon://';
 
@@ -48,8 +51,15 @@ export const auth = betterAuth({
     expo(),
     // Third sign-in method (spec §2: "additional method per dev decision"): email one-time code.
     emailOTP({
+      // Dev shortcut: every issued code is the same internal value, and app.ts rewrites
+      // whatever the user typed to it — so ANY code signs in. Off unless AUTH_ACCEPT_ANY_OTP=true.
+      ...(env.AUTH_ACCEPT_ANY_OTP ? { generateOTP: () => ANY_OTP_CODE } : {}),
       async sendVerificationOTP({ email, otp, type }) {
-        // TODO(week 2): send via an email provider (e.g. Resend). Until then, dev-only console.
+        if (env.AUTH_ACCEPT_ANY_OTP) {
+          console.log(`[auth] AUTH_ACCEPT_ANY_OTP: any ${type} code will be accepted for ${email}`);
+          return;
+        }
+        // TODO: send via an email provider (e.g. Resend). Until then, dev-only console.
         if (isDev) {
           console.log(`[auth] ${type} OTP for ${email}: ${otp}`);
           return;

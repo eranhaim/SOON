@@ -1,0 +1,25 @@
+# Runs inside the `web` container. TLS is terminated by the host's Caddy in front of it.
+{
+	auto_https off
+	servers {
+		# Keep X-Forwarded-Proto=https from the host proxy so the API knows it's on HTTPS.
+		trusted_proxies static private_ranges
+	}
+}
+
+:80 {
+	encode zstd gzip
+
+	handle /api/* {
+		reverse_proxy server:4000
+	}
+	handle /health {
+		reverse_proxy server:4000
+	}
+
+	handle {
+		root * /srv
+		try_files {path} {path}.html {path}/index.html /index.html
+		file_server
+	}
+}

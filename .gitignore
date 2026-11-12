@@ -31,3 +31,10 @@ npm-debug.*
 # OS / editors
 .DS_Store
 Thumbs.db
+
+# SSH keys / server credentials — never commit
+higherpays-vultr
+higherpays-vultr.pub
+*.ppk
+id_rsa*
+id_ed25519*

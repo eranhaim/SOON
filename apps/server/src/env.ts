@@ -21,6 +21,11 @@ const envSchema = z.object({
         .map((o) => o.trim())
         .filter(Boolean),
     ),
+  /** DEV/TRIAL ONLY: accept any email sign-in code. Anyone can sign in as any email while on. */
+  AUTH_ACCEPT_ANY_OTP: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
   GOOGLE_CLIENT_ID: optional,
   GOOGLE_CLIENT_SECRET: optional,
   APPLE_CLIENT_ID: optional,

@@ -4,6 +4,10 @@ import { env } from './env';
 
 const app = await buildApp();
 
+if (env.AUTH_ACCEPT_ANY_OTP) {
+  app.log.warn('AUTH_ACCEPT_ANY_OTP is ON — any email code signs in. Turn off before real launch.');
+}
+
 const shutdown = async (signal: string) => {
   app.log.info(`${signal} received, shutting down`);
   await app.close();
