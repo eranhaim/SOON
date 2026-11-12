@@ -1,0 +1,22 @@
+{
+  "name": "soon",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev -w @soon/server",
+    "dev:mobile": "npm run start -w @soon/mobile",
+    "dev:web": "npm run web -w @soon/mobile",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:generate": "npm run db:generate -w @soon/server",
+    "db:migrate": "npm run db:migrate -w @soon/server",
+    "db:seed": "npm run db:seed -w @soon/server",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

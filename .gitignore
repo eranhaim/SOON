@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+
+# builds
+dist/
+build/
+web-build/
+*.tsbuildinfo
+
+# env files — NEVER commit real secrets (this repo is public)
+.env
+.env.*
+!.env.example
+
+# Expo
+.expo/
+expo-env.d.ts
+/apps/mobile/ios
+/apps/mobile/android
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+
+# logs
+npm-debug.*
+*.log
+
+# OS / editors
+.DS_Store
+Thumbs.db

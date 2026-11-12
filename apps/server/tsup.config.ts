@@ -1,0 +1,12 @@
+import { defineConfig } from 'tsup';
+
+export default defineConfig({
+  entry: ['src/index.ts'],
+  format: ['esm'],
+  target: 'node22',
+  platform: 'node',
+  clean: true,
+  sourcemap: true,
+  // @soon/shared ships TypeScript source, so bundle it into the server build.
+  noExternal: ['@soon/shared'],
+});
