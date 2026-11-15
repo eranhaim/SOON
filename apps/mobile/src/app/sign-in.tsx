@@ -14,6 +14,8 @@ import { homeForRole } from '@/lib/session';
 import { colors, hairline, space } from '@/theme/tokens';
 
 const TOO_MANY = 'יותר מדי ניסיונות. נסו שוב בעוד דקה.';
+/** Must match emailAndPassword.minPasswordLength in apps/server/src/auth.ts. */
+const MIN_PASSWORD = 6;
 
 type Provider = 'google' | 'apple';
 const PROVIDER_LABEL: Record<Provider, string> = {
@@ -26,9 +28,10 @@ export default function SignIn() {
   const role = USER_ROLES.includes(params.role as UserRole) ? (params.role as UserRole) : undefined;
 
   const [providers, setProviders] = useState<Provider[]>([]);
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
-  const [step, setStep] = useState<'email' | 'code'>('email');
+  const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -48,22 +51,32 @@ export default function SignIn() {
     router.replace(homeForRole(current));
   }
 
-  async function sendCode() {
+  const canSubmit =
+    email.includes('@') && password.length >= MIN_PASSWORD && (mode === 'signin' || name.trim().length > 0);
+
+  async function submit() {
+    if (!canSubmit || busy) return;
     setError(undefined);
     setBusy(true);
-    const { error: err } = await authClient.emailOtp.sendVerificationOtp({ email: email.trim(), type: 'sign-in' });
+    const { error: err } =
+      mode === 'signin'
+        ? await authClient.signIn.email({ email: email.trim(), password })
+        : await authClient.signUp.email({ name: name.trim(), email: email.trim(), password });
     setBusy(false);
-    if (err) return setError(err.status === 429 ? TOO_MANY : 'לא הצלחנו לשלוח קוד. בדקו את כתובת האימייל.');
-    setStep('code');
+    if (err) {
+      if (err.status === 429) return setError(TOO_MANY);
+      if (mode === 'signin') return setError('האימייל או הסיסמה שגויים.');
+      if (err.code === 'USER_ALREADY_EXISTS' || err.code === 'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL') {
+        return setError('כבר קיים חשבון עם האימייל הזה. נסו להתחבר.');
+      }
+      return setError('לא הצלחנו ליצור חשבון. בדקו את הפרטים.');
+    }
+    await finish();
   }
 
-  async function verifyCode() {
+  function switchMode() {
     setError(undefined);
-    setBusy(true);
-    const { error: err } = await authClient.signIn.emailOtp({ email: email.trim(), otp: otp.trim() });
-    setBusy(false);
-    if (err) return setError(err.status === 429 ? TOO_MANY : 'הקוד שגוי או שפג תוקפו.');
-    await finish();
+    setMode(mode === 'signin' ? 'signup' : 'signin');
   }
 
   async function social(provider: Provider) {
@@ -81,10 +94,10 @@ export default function SignIn() {
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text variant="h1">{role === 'vendor' ? 'כניסה לעסקים' : 'כניסה'}</Text>
           <Text variant="body" color={colors.inkSoft} style={styles.lead}>
-            {step === 'email' ? 'התחברו או צרו חשבון חדש' : `שלחנו קוד בן 6 ספרות אל ${email}`}
+            {mode === 'signin' ? 'התחברו לחשבון שלכם' : 'צרו חשבון חדש'}
           </Text>
 
-          {step === 'email' && providers.length > 0 && (
+          {providers.length > 0 && (
             <>
               <View style={styles.stack}>
                 {providers.map((p) => (
@@ -101,38 +114,42 @@ export default function SignIn() {
             </>
           )}
 
-          {step === 'email' ? (
-            <View style={styles.stack}>
-              <TextField
-                label="אימייל"
-                ltr
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                autoComplete="email"
-                keyboardType="email-address"
-                error={error}
-                onSubmitEditing={sendCode}
-              />
-              <Button label="שלחו לי קוד" loading={busy} disabled={!email.includes('@')} onPress={sendCode} />
-            </View>
-          ) : (
-            <View style={styles.stack}>
-              <TextField
-                label="קוד אימות"
-                ltr
-                value={otp}
-                onChangeText={setOtp}
-                keyboardType="number-pad"
-                autoComplete="one-time-code"
-                maxLength={6}
-                error={error}
-                onSubmitEditing={verifyCode}
-              />
-              <Button label="כניסה" loading={busy} disabled={otp.length < 6} onPress={verifyCode} />
-              <Button variant="ghost" label="שינוי אימייל" onPress={() => setStep('email')} />
-            </View>
-          )}
+          <View style={styles.stack}>
+            {mode === 'signup' && (
+              <TextField label="שם מלא" value={name} onChangeText={setName} autoComplete="name" />
+            )}
+            <TextField
+              label="אימייל"
+              ltr
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+            />
+            <TextField
+              label={mode === 'signup' ? `סיסמה (לפחות ${MIN_PASSWORD} תווים)` : 'סיסמה'}
+              ltr
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+              error={error}
+              onSubmitEditing={submit}
+            />
+            <Button
+              label={mode === 'signin' ? 'כניסה' : 'יצירת חשבון'}
+              loading={busy}
+              disabled={!canSubmit}
+              onPress={submit}
+            />
+            <Button
+              variant="ghost"
+              label={mode === 'signin' ? 'אין לכם חשבון? הרשמה' : 'כבר יש לכם חשבון? כניסה'}
+              onPress={switchMode}
+            />
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

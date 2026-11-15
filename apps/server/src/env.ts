@@ -5,11 +5,6 @@ const optional = z
   .optional()
   .transform((v) => (v ? v : undefined));
 
-const flag = z
-  .enum(['true', 'false'])
-  .default('false')
-  .transform((v) => v === 'true');
-
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().default(4000),
@@ -26,14 +21,7 @@ const envSchema = z.object({
         .map((o) => o.trim())
         .filter(Boolean),
     ),
-  /** DEV/TRIAL ONLY: accept any email sign-in code. Anyone can sign in as any email while on. */
-  AUTH_ACCEPT_ANY_OTP: flag,
-  /**
-   * DEV MODE: skip the email code check for EVERY email, admins included. Any code signs in,
-   * and an unknown email gets an account on the spot. Never leave on for a real launch.
-   */
-  AUTH_DEV_MODE: flag,
-  /** Comma-separated emails that get the admin role. Not covered by AUTH_ACCEPT_ANY_OTP (but is by AUTH_DEV_MODE). */
+  /** Comma-separated emails that get the admin role. */
   ADMIN_EMAILS: z
     .string()
     .default('')

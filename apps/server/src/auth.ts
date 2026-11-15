@@ -1,25 +1,13 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
 import { expo } from '@better-auth/expo';
-import { emailOTP } from 'better-auth/plugins';
 
 import { db } from './db';
 import * as schema from './db/schema';
 import { env, isDev } from './env';
 
-/** Internal code used when AUTH_ACCEPT_ANY_OTP is on. Never shown to users. */
-export const ANY_OTP_CODE = '000000';
-
 export function isAdminEmail(email: string | undefined | null) {
   return Boolean(email && env.ADMIN_EMAILS.includes(email.trim().toLowerCase()));
-}
-
-/**
- * True when the email code check is bypassed for this email.
- * AUTH_DEV_MODE covers every email. AUTH_ACCEPT_ANY_OTP covers every non-admin email.
- */
-export function bypassesOtp(email: string | undefined | null) {
-  return env.AUTH_DEV_MODE || (env.AUTH_ACCEPT_ANY_OTP && !isAdminEmail(email));
 }
 
 /** The app's deep-link scheme (apps/mobile/app.json → expo.scheme). */
@@ -51,6 +39,12 @@ export const auth = betterAuth({
     // Expo Go / dev client deep links — development only.
     ...(isDev ? ['exp://', 'exp://**'] : []),
   ],
+  // Temporary sign-in method until Google-only login: email + password, no email verification.
+  emailAndPassword: {
+    enabled: true,
+    autoSignIn: true,
+    minPasswordLength: 6,
+  },
   user: {
     additionalFields: {
       // Set by our own onboarding endpoint, never directly by the client at sign-up.
@@ -69,35 +63,7 @@ export const auth = betterAuth({
     },
   },
   socialProviders,
-  plugins: [
-    expo(),
-    // Third sign-in method (spec §2: "additional method per dev decision"): email one-time code.
-    emailOTP({
-      // Dev shortcut: every issued code is the same internal value, and app.ts rewrites
-      // whatever the user typed to it — so ANY code signs in. Off unless AUTH_ACCEPT_ANY_OTP=true.
-      // Admin emails are never covered: they always get a real random code.
-      ...(env.AUTH_ACCEPT_ANY_OTP || env.AUTH_DEV_MODE
-        ? { generateOTP: ({ email }: { email: string }) => (bypassesOtp(email) ? ANY_OTP_CODE : undefined) }
-        : {}),
-      async sendVerificationOTP({ email, otp, type }) {
-        if (bypassesOtp(email)) {
-          console.log(`[auth] code check bypassed: any ${type} code will be accepted for ${email}`);
-          return;
-        }
-        if (isAdminEmail(email)) {
-          // TODO: email it once a provider is configured. Until then: `docker compose logs server`.
-          console.log(`[auth] ADMIN ${type} code for ${email}: ${otp}`);
-          return;
-        }
-        // TODO: send via an email provider (e.g. Resend). Until then, dev-only console.
-        if (isDev) {
-          console.log(`[auth] ${type} OTP for ${email}: ${otp}`);
-          return;
-        }
-        throw new Error('Email delivery is not configured yet');
-      },
-    }),
-  ],
+  plugins: [expo()],
 });
 
 export const enabledSocialProviders = Object.keys(socialProviders);

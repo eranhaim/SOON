@@ -7,6 +7,8 @@ export default defineConfig({
     index: 'src/index.ts',
     migrate: 'src/migrate.ts',
     'grant-admin': 'scripts/grant-admin.ts',
+    'set-password': 'scripts/set-password.ts',
+    'seed-demo': 'src/db/seed-demo.ts',
   },
   format: ['esm'],
   target: 'node22',

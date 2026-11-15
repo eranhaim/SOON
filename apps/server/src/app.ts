@@ -3,7 +3,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import { sql } from 'drizzle-orm';
 import Fastify from 'fastify';
 
-import { ANY_OTP_CODE, auth, bypassesOtp, enabledSocialProviders } from './auth';
+import { auth, enabledSocialProviders } from './auth';
 import { db } from './db';
 import { category } from './db/schema';
 import { env, isDev } from './env';
@@ -17,9 +17,6 @@ import { planningRoutes } from './routes/planning';
 import { uploadRoutes } from './routes/uploads';
 import { vendorRoutes } from './routes/vendors';
 import { weddingRoutes } from './routes/weddings';
-
-/** Better Auth endpoints that check an email code. */
-const OTP_CHECK_PATHS = new Set(['/api/auth/sign-in/email-otp', '/api/auth/email-otp/verify-email']);
 
 export async function buildApp() {
   const app = Fastify({
@@ -42,16 +39,7 @@ export async function buildApp() {
     async handler(request, reply) {
       try {
         const url = new URL(request.url, `${request.protocol}://${request.headers.host}`);
-        let body = request.body;
-        if (
-          request.method === 'POST' &&
-          OTP_CHECK_PATHS.has(url.pathname) &&
-          bypassesOtp((body as { email?: string } | undefined)?.email)
-        ) {
-          // Dev shortcut: replace the typed code with the fixed internal one (see auth.ts).
-          // Admin emails are covered only by AUTH_DEV_MODE.
-          body = { ...(body as object), otp: ANY_OTP_CODE };
-        }
+        const body = request.body;
         const req = new Request(url.toString(), {
           method: request.method,
           headers: fromNodeHeaders(request.headers),

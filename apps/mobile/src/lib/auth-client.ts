@@ -1,5 +1,5 @@
 import { expoClient } from '@better-auth/expo/client';
-import { emailOTPClient, inferAdditionalFields } from 'better-auth/client/plugins';
+import { inferAdditionalFields } from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
 import * as SecureStore from 'expo-secure-store';
 
@@ -16,7 +16,6 @@ export const authClient = createAuthClient({
   fetchOptions: { credentials: 'include' },
   plugins: [
     expoClient({ scheme: 'soon', storagePrefix: 'soon', storage: SecureStore }),
-    emailOTPClient(),
     inferAdditionalFields({
       user: {
         role: { type: 'string', required: false, input: false },

@@ -1,11 +1,14 @@
 /**
- * DEV ONLY: fills the local DB with a believable marketplace so every screen has data.
+ * Fills the DB with a believable marketplace so every screen has data.
  *   npm run db:seed:demo -w @soon/server
+ * On the demo server (NODE_ENV=production) it needs --force:
+ *   docker compose -f deploy/docker-compose.prod.yml exec server node dist/seed-demo.js --force
  * Idempotent: wipes previous demo users (…@demo.soon) and everything hanging off them.
- * Sign in as couple@demo.soon or vendor@demo.soon (any code works while AUTH_ACCEPT_ANY_OTP=true).
+ * Every demo user signs in with the password DEMO_PASSWORD.
  */
 import { randomUUID } from 'node:crypto';
 
+import { hashPassword } from 'better-auth/crypto';
 import { and, inArray, isNull, like, sql } from 'drizzle-orm';
 
 import { addDays, budgetCategoryForVendor, categoryLabel, todayIso, type RegionSlug } from '@soon/shared';
@@ -14,6 +17,7 @@ import { env } from '../env';
 import { syncChecklist } from '../services/checklist';
 import { db, pool } from './index';
 import {
+  account,
   availabilityEntry,
   budgetItem,
   conversation,
@@ -37,10 +41,13 @@ import {
   weddingPayment,
 } from './schema';
 
-if (env.NODE_ENV === 'production') {
-  console.error('Refusing to seed demo data in production.');
+if (env.NODE_ENV === 'production' && !process.argv.includes('--force')) {
+  console.error('Refusing to seed demo data in production. Pass --force on a demo server.');
   process.exit(1);
 }
+
+export const DEMO_PASSWORD = 'demo1234';
+const demoPasswordHash = await hashPassword(DEMO_PASSWORD);
 
 const img = (id: string, w = 1600) => `https://images.unsplash.com/photo-${id}?w=${w}&q=75&auto=format&fit=crop`;
 
@@ -199,6 +206,10 @@ async function wipe() {
 async function createUser(email: string, name: string, role: 'couple' | 'vendor') {
   const id = randomUUID();
   await db.insert(user).values({ id, email, name, role, emailVerified: true });
+  // Better Auth's email+password login reads the 'credential' account row.
+  await db.insert(account).values({
+    id: randomUUID(), userId: id, accountId: id, providerId: 'credential', password: demoPasswordHash, updatedAt: new Date(),
+  });
   return id;
 }
 
@@ -497,7 +508,7 @@ async function main() {
   }
 
   console.log(`Seeded ${VENDORS.length} vendors, 2 pending, ${reviewerNames.length} reviewer couples, demo couple + vendor.`);
-  console.log('Sign in as couple@demo.soon or vendor@demo.soon (any code while AUTH_ACCEPT_ANY_OTP=true).');
+  console.log(`Sign in as couple@demo.soon or vendor@demo.soon, password ${DEMO_PASSWORD}.`);
 }
 
 try {
