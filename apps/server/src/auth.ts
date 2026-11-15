@@ -14,6 +14,14 @@ export function isAdminEmail(email: string | undefined | null) {
   return Boolean(email && env.ADMIN_EMAILS.includes(email.trim().toLowerCase()));
 }
 
+/**
+ * True when the email code check is bypassed for this email.
+ * AUTH_DEV_MODE covers every email. AUTH_ACCEPT_ANY_OTP covers every non-admin email.
+ */
+export function bypassesOtp(email: string | undefined | null) {
+  return env.AUTH_DEV_MODE || (env.AUTH_ACCEPT_ANY_OTP && !isAdminEmail(email));
+}
+
 /** The app's deep-link scheme (apps/mobile/app.json → expo.scheme). */
 const APP_SCHEME = 'soon://';
 
@@ -68,17 +76,17 @@ export const auth = betterAuth({
       // Dev shortcut: every issued code is the same internal value, and app.ts rewrites
       // whatever the user typed to it — so ANY code signs in. Off unless AUTH_ACCEPT_ANY_OTP=true.
       // Admin emails are never covered: they always get a real random code.
-      ...(env.AUTH_ACCEPT_ANY_OTP
-        ? { generateOTP: ({ email }: { email: string }) => (isAdminEmail(email) ? undefined : ANY_OTP_CODE) }
+      ...(env.AUTH_ACCEPT_ANY_OTP || env.AUTH_DEV_MODE
+        ? { generateOTP: ({ email }: { email: string }) => (bypassesOtp(email) ? ANY_OTP_CODE : undefined) }
         : {}),
       async sendVerificationOTP({ email, otp, type }) {
+        if (bypassesOtp(email)) {
+          console.log(`[auth] code check bypassed: any ${type} code will be accepted for ${email}`);
+          return;
+        }
         if (isAdminEmail(email)) {
           // TODO: email it once a provider is configured. Until then: `docker compose logs server`.
           console.log(`[auth] ADMIN ${type} code for ${email}: ${otp}`);
-          return;
-        }
-        if (env.AUTH_ACCEPT_ANY_OTP) {
-          console.log(`[auth] AUTH_ACCEPT_ANY_OTP: any ${type} code will be accepted for ${email}`);
           return;
         }
         // TODO: send via an email provider (e.g. Resend). Until then, dev-only console.

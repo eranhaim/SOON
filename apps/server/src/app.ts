@@ -3,7 +3,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import { sql } from 'drizzle-orm';
 import Fastify from 'fastify';
 
-import { ANY_OTP_CODE, auth, enabledSocialProviders, isAdminEmail } from './auth';
+import { ANY_OTP_CODE, auth, bypassesOtp, enabledSocialProviders } from './auth';
 import { db } from './db';
 import { category } from './db/schema';
 import { env, isDev } from './env';
@@ -44,13 +44,12 @@ export async function buildApp() {
         const url = new URL(request.url, `${request.protocol}://${request.headers.host}`);
         let body = request.body;
         if (
-          env.AUTH_ACCEPT_ANY_OTP &&
           request.method === 'POST' &&
           OTP_CHECK_PATHS.has(url.pathname) &&
-          !isAdminEmail((body as { email?: string } | undefined)?.email)
+          bypassesOtp((body as { email?: string } | undefined)?.email)
         ) {
           // Dev shortcut: replace the typed code with the fixed internal one (see auth.ts).
-          // Never for admin emails — they must enter their real code.
+          // Admin emails are covered only by AUTH_DEV_MODE.
           body = { ...(body as object), otp: ANY_OTP_CODE };
         }
         const req = new Request(url.toString(), {

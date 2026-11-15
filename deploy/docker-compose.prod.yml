@@ -36,6 +36,7 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in deploy/.env}
       WEB_ORIGINS: ${PUBLIC_URL}
       AUTH_ACCEPT_ANY_OTP: ${AUTH_ACCEPT_ANY_OTP:-false}
+      AUTH_DEV_MODE: ${AUTH_DEV_MODE:-false}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       S3_ENDPOINT: ${S3_ENDPOINT:-}
       S3_REGION: ${S3_REGION:-us-east-1}

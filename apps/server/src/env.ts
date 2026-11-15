@@ -28,7 +28,12 @@ const envSchema = z.object({
     ),
   /** DEV/TRIAL ONLY: accept any email sign-in code. Anyone can sign in as any email while on. */
   AUTH_ACCEPT_ANY_OTP: flag,
-  /** Comma-separated emails that get the admin role. Never covered by AUTH_ACCEPT_ANY_OTP. */
+  /**
+   * DEV MODE: skip the email code check for EVERY email, admins included. Any code signs in,
+   * and an unknown email gets an account on the spot. Never leave on for a real launch.
+   */
+  AUTH_DEV_MODE: flag,
+  /** Comma-separated emails that get the admin role. Not covered by AUTH_ACCEPT_ANY_OTP (but is by AUTH_DEV_MODE). */
   ADMIN_EMAILS: z
     .string()
     .default('')
