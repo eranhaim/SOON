@@ -19,7 +19,7 @@ export function homeForRole(role: UserRole | null): Href {
     case 'admin':
       return '/admin';
     case 'couple':
-      return '/home';
+      return '/couple';
     default:
       return '/choose-role';
   }

@@ -48,6 +48,7 @@ export const auth = betterAuth({
       // Set by our own onboarding endpoint, never directly by the client at sign-up.
       role: { type: 'string', required: false, input: false },
       phone: { type: 'string', required: false, input: false },
+      bannedAt: { type: 'date', required: false, input: false },
     },
   },
   databaseHooks: {

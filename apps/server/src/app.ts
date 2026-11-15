@@ -8,9 +8,15 @@ import { db } from './db';
 import { category } from './db/schema';
 import { env, isDev } from './env';
 import { adminRoutes } from './routes/admin';
+import { conversationRoutes } from './routes/conversations';
+import { coupleHomeRoutes } from './routes/couple-home';
+import { crmRoutes } from './routes/crm';
+import { exploreRoutes } from './routes/explore';
 import { meRoutes } from './routes/me';
+import { planningRoutes } from './routes/planning';
 import { uploadRoutes } from './routes/uploads';
 import { vendorRoutes } from './routes/vendors';
+import { weddingRoutes } from './routes/weddings';
 
 /** Better Auth endpoints that check an email code. */
 const OTP_CHECK_PATHS = new Set(['/api/auth/sign-in/email-otp', '/api/auth/email-otp/verify-email']);
@@ -67,6 +73,12 @@ export async function buildApp() {
   await app.register(uploadRoutes);
   await app.register(vendorRoutes);
   await app.register(adminRoutes);
+  await app.register(weddingRoutes);
+  await app.register(exploreRoutes);
+  await app.register(coupleHomeRoutes);
+  await app.register(planningRoutes);
+  await app.register(conversationRoutes);
+  await app.register(crmRoutes);
 
   // ---- Health / meta ----
   app.get('/health', async () => {

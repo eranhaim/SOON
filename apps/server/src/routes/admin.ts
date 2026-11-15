@@ -17,7 +17,9 @@ import { parseBody, requireAdmin } from '../session';
 import { loadVendor } from './vendors';
 
 /** Allowed moderation transitions: action → (from statuses, to status). */
-const TRANSITIONS: Record<AdminAction, { from: VendorStatus[]; to: VendorStatus }> = {
+type ModerationAction = Extract<AdminAction, 'vendor.approve' | 'vendor.reject' | 'vendor.suspend' | 'vendor.reinstate'>;
+
+const TRANSITIONS: Record<ModerationAction, { from: VendorStatus[]; to: VendorStatus }> = {
   'vendor.approve': { from: ['pending', 'rejected'], to: 'approved' },
   'vendor.reject': { from: ['pending'], to: 'rejected' },
   'vendor.suspend': { from: ['approved'], to: 'suspended' },
@@ -28,7 +30,7 @@ async function transition(
   reply: FastifyReply,
   adminUserId: string,
   vendorId: string,
-  action: AdminAction,
+  action: ModerationAction,
   reason: string | null,
 ) {
   const rule = TRANSITIONS[action];

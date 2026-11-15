@@ -9,6 +9,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { QueryProvider } from '@/lib/query';
 import { colors } from '@/theme/tokens';
 
 SplashScreen.preventAutoHideAsync();
@@ -30,7 +31,7 @@ export default function RootLayout() {
   if (!ready) return null;
 
   return (
-    <>
+    <QueryProvider>
       <StatusBar style="dark" />
       <Stack
         screenOptions={{
@@ -40,6 +41,6 @@ export default function RootLayout() {
         }}>
         <Stack.Screen name="index" options={{ contentStyle: { backgroundColor: colors.night } }} />
       </Stack>
-    </>
+    </QueryProvider>
   );
 }

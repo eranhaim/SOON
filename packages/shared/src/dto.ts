@@ -43,6 +43,8 @@ export type VendorPublicDTO = {
   cancellationPolicy: string | null;
   regions: RegionSlug[];
   isFeatured: boolean;
+  ratingAvg: number | null;
+  reviewCount: number;
   media: VendorMediaDTO[];
   packages: VendorPackageDTO[];
   faqs: VendorFaqDTO[];
@@ -90,4 +92,234 @@ export type AdminVendorDetail = {
   vendor: VendorOwnerDTO;
   owner: { id: string; name: string; email: string; createdAt: string };
   history: AdminActionDTO[];
+};
+
+// ---------- couples ----------
+
+export type WeddingCategoryDTO = { slug: string; label: string; status: 'needed' | 'closed' };
+
+export type WeddingDTO = {
+  id: string;
+  partner1Name: string;
+  partner2Name: string;
+  /** YYYY-MM-DD */
+  weddingDate: string | null;
+  region: RegionSlug | null;
+  venueName: string | null;
+  budgetTotalAgorot: number | null;
+  coverImageUrl: string | null;
+  categories: WeddingCategoryDTO[];
+};
+
+/** Availability of a vendor on one date, as couples see it (spec §5). */
+export type DayAvailability = 'available' | 'booked' | 'unknown';
+
+/** A search-result / saved / recommendation card (spec §5). */
+export type VendorCardDTO = {
+  id: string;
+  slug: string;
+  businessName: string;
+  categorySlug: string;
+  categoryLabel: string;
+  regions: RegionSlug[];
+  coverUrl: string | null;
+  logoUrl: string | null;
+  priceFromAgorot: number | null;
+  priceToAgorot: number | null;
+  isFeatured: boolean;
+  ratingAvg: number | null;
+  reviewCount: number;
+  saveCount: number;
+  /** Only when the request had a date (or the couple has a wedding date). */
+  availability: DayAvailability | null;
+  saved: boolean;
+};
+
+export type VendorSearchResult = {
+  items: VendorCardDTO[];
+  nextCursor: string | null;
+  total: number;
+};
+
+export type SavedVendorDTO = VendorCardDTO & { note: string | null; savedAt: string };
+
+export type TaskDTO = {
+  id: string;
+  title: string;
+  notes: string | null;
+  dueDate: string | null;
+  doneAt: string | null;
+  categorySlug: string | null;
+  templateKey: string | null;
+};
+
+export type WeddingEventDTO = {
+  id: string;
+  kind: import('./enums').WeddingEventKind;
+  title: string;
+  startsAt: string;
+  endsAt: string | null;
+  location: string | null;
+  vendorId: string | null;
+  vendorName: string | null;
+  notes: string | null;
+};
+
+/** A short, contextual nudge on the couple home (spec §4). */
+export type HomeInsight = { key: string; text: string; href?: string };
+
+export type CoupleHomeDTO = {
+  wedding: WeddingDTO;
+  daysToGo: number | null;
+  budget: { totalAgorot: number | null; committedAgorot: number; paidAgorot: number };
+  vendors: { closed: number; needed: number; booked: number };
+  tasks: { open: number; done: number; overdue: number; next: TaskDTO | null };
+  nextEvent: WeddingEventDTO | null;
+  insights: HomeInsight[];
+  recommended: VendorCardDTO[];
+  fresh: VendorCardDTO[];
+};
+
+export type WeddingPaymentDTO = {
+  id: string;
+  budgetItemId: string | null;
+  title: string;
+  amountAgorot: number;
+  dueDate: string | null;
+  paidAt: string | null;
+};
+
+export type BudgetItemDTO = {
+  id: string;
+  category: string;
+  title: string;
+  vendorId: string | null;
+  vendorName: string | null;
+  plannedAgorot: number | null;
+  actualAgorot: number | null;
+  paidAgorot: number;
+  notes: string | null;
+};
+
+export type BudgetDTO = {
+  totalAgorot: number | null;
+  plannedAgorot: number;
+  committedAgorot: number;
+  paidAgorot: number;
+  items: BudgetItemDTO[];
+  payments: WeddingPaymentDTO[];
+};
+
+export type GuestDTO = {
+  id: string;
+  name: string;
+  side: import('./enums').GuestSide;
+  phone: string | null;
+  rsvp: import('./enums').RsvpStatus;
+  partySize: number;
+  tableLabel: string | null;
+  notes: string | null;
+};
+
+export type GuestListDTO = {
+  guests: GuestDTO[];
+  /** People (party sizes summed), by RSVP status. */
+  people: Record<import('./enums').RsvpStatus, number> & { total: number };
+};
+
+// ---------- messaging (spec §8) ----------
+export type ConversationListItem = {
+  id: string;
+  vendor: { id: string; slug: string; businessName: string; logoUrl: string | null; categoryLabel: string };
+  couple: { weddingId: string; names: string };
+  lastMessage: { body: string | null; at: string; mine: boolean } | null;
+  unread: number;
+  leadId: string | null;
+  leadStatus: import('./enums').LeadStatus | null;
+};
+
+export type MessageDTO = { id: string; body: string | null; attachmentUrl: string | null; createdAt: string; mine: boolean };
+
+export type ConversationDetail = {
+  conversation: ConversationListItem;
+  messages: MessageDTO[];
+  /** When the other side last read the thread (for "seen" on my messages). */
+  otherReadAt: string | null;
+  /** Event details next to the chat so nobody asks twice (spec §8). */
+  context: {
+    eventDate: string | null;
+    guestCount: number | null;
+    region: string | null;
+    venueName: string | null;
+    quotedPriceAgorot: number | null;
+  };
+  viewerSide: 'vendor' | 'couple';
+};
+
+// ---------- CRM (spec §10, §13) ----------
+export type LeadPaymentDTO = { id: string; title: string; amountAgorot: number; dueDate: string | null; paidAt: string | null };
+
+export type CalendarEntryDTO = {
+  id: string;
+  status: import('./enums').AvailabilityStatus;
+  kind: import('./enums').CalendarEntryKind;
+  startsAt: string;
+  endsAt: string;
+  title: string | null;
+  location: string | null;
+  note: string | null;
+  leadId: string | null;
+  /** From the linked lead (no copies: spec §19). */
+  clientName: string | null;
+  clientPhone: string | null;
+  leadStatus: import('./enums').LeadStatus | null;
+  quotedPriceAgorot: number | null;
+  paidAgorot: number;
+};
+
+export type LeadListItem = {
+  id: string;
+  clientName: string;
+  source: import('./enums').LeadSource;
+  status: import('./enums').LeadStatus;
+  eventDate: string | null;
+  location: string | null;
+  guestCount: number | null;
+  quotedPriceAgorot: number | null;
+  nextAction: string | null;
+  nextActionAt: string | null;
+  conversationId: string | null;
+  unread: number;
+  updatedAt: string;
+};
+
+export type LeadDetailDTO = LeadListItem & {
+  clientPhone: string | null;
+  clientEmail: string | null;
+  notes: string | null;
+  packageName: string | null;
+  weddingId: string | null;
+  payments: LeadPaymentDTO[];
+  calendar: CalendarEntryDTO[];
+  createdAt: string;
+};
+
+export type LeadsDTO = { items: LeadListItem[]; counts: Partial<Record<import('./enums').LeadStatus, number>> };
+
+export type VendorDashboardDTO = {
+  newLeads: number;
+  activeClients: number;
+  upcomingEvents: number;
+  bookedDates: number;
+  unreadMessages: number;
+  views30: number;
+  views7: number;
+  saves: number;
+  bookedRevenueAgorot: number;
+  collectedAgorot: number;
+  reviewAvg: number | null;
+  reviewCount: number;
+  upcoming: CalendarEntryDTO[];
+  followUps: LeadListItem[];
+  viewsSeries: { day: string; views: number }[];
 };

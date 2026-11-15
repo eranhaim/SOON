@@ -23,6 +23,9 @@ export const user = pgTable('user', {
   /** Null until the user picks "Couple" or "Vendor" on the role screen. */
   role: userRoleEnum('role'),
   phone: text('phone'),
+  /** Set by an admin to block the account (spec §17). Checked on every API call. */
+  bannedAt: timestamp('banned_at', { withTimezone: true }),
+  bannedReason: text('banned_reason'),
 });
 
 export const session = pgTable(

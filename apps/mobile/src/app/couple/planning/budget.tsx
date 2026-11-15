@@ -1,0 +1,332 @@
+import Feather from '@expo/vector-icons/Feather';
+import { useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+
+import {
+  agorotToShekelsInput,
+  BUDGET_CATEGORIES,
+  budgetCategoryLabel,
+  formatAgorot,
+  shekelsToAgorot,
+  todayIso,
+  type BudgetDTO,
+  type BudgetItemDTO,
+  type WeddingPaymentDTO,
+} from '@soon/shared';
+
+import { Button } from '@/components/Button';
+import { DateField } from '@/components/DateField';
+import { Loading, Screen } from '@/components/Screen';
+import { Sheet } from '@/components/Sheet';
+import { Text } from '@/components/Text';
+import { TextField } from '@/components/TextField';
+import { Card, Chip, ChipGroup, IconButton } from '@/components/ui';
+import { errorMessage } from '@/lib/api';
+import { confirm } from '@/lib/confirm';
+import { formatDayShort } from '@/lib/dates';
+import { keys, useApiMutation, useApiQuery } from '@/lib/query';
+import { colors, hairline, space } from '@/theme/tokens';
+
+type ItemDraft = { id?: string; category: string; title: string; vendorName: string; planned: string; actual: string; notes: string };
+type PayDraft = { id?: string; budgetItemId: string | null; title: string; amount: string; dueDate: string | null; paid: boolean };
+
+/** Budget (spec §7.2): Budget / Actual / Paid / Remaining per category, payments with due dates. */
+export default function Budget() {
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<'budget' | 'payments'>(params.tab === 'payments' ? 'payments' : 'budget');
+  const q = useApiQuery<BudgetDTO>(keys.budget, '/api/planning/budget');
+  const m = useApiMutation<BudgetDTO>({ setData: keys.budget, invalidate: [keys.home] });
+  const [item, setItem] = useState<ItemDraft | null>(null);
+  const [pay, setPay] = useState<PayDraft | null>(null);
+  const [error, setError] = useState<string>();
+
+  if (q.isPending) return <Loading />;
+  const b = q.data!;
+  const total = b.totalAgorot;
+  const over = total != null && b.committedAgorot > total;
+  const today = todayIso();
+
+  async function run(input: Parameters<typeof m.mutateAsync>[0], close: () => void) {
+    setError(undefined);
+    try {
+      await m.mutateAsync(input);
+      close();
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  }
+
+  async function splitBySuggestion() {
+    if (!total) return;
+    for (const c of BUDGET_CATEGORIES) {
+      if (b.items.some((i) => i.category === c.key)) continue;
+      await m.mutateAsync({
+        path: '/api/planning/budget/items',
+        json: { category: c.key, title: c.label, planned: Math.round((total * c.suggestedPct) / 100) },
+      });
+    }
+  }
+
+  const editItem = (i?: BudgetItemDTO) =>
+    setItem(
+      i
+        ? {
+            id: i.id,
+            category: i.category,
+            title: i.title,
+            vendorName: i.vendorId ? '' : (i.vendorName ?? ''),
+            planned: agorotToShekelsInput(i.plannedAgorot),
+            actual: agorotToShekelsInput(i.actualAgorot),
+            notes: i.notes ?? '',
+          }
+        : { category: 'other', title: '', vendorName: '', planned: '', actual: '', notes: '' },
+    );
+  const editPay = (p?: WeddingPaymentDTO) =>
+    setPay(
+      p
+        ? { id: p.id, budgetItemId: p.budgetItemId, title: p.title, amount: agorotToShekelsInput(p.amountAgorot), dueDate: p.dueDate, paid: Boolean(p.paidAt) }
+        : { budgetItemId: null, title: '', amount: '', dueDate: null, paid: false },
+    );
+
+  return (
+    <Screen
+      title="תקציב ותשלומים"
+      back
+      backTo="/couple/planning"
+      right={<IconButton icon="plus" label="הוספה" onPress={() => (tab === 'budget' ? editItem() : editPay())} />}>
+      <Card tone="muted">
+        <View style={styles.sumRow}>
+          <Sum label="תקציב כולל" value={total != null ? formatAgorot(total) : '—'} />
+          <Sum label="התחייבויות" value={formatAgorot(b.committedAgorot)} danger={over} />
+          <Sum label="שולם" value={formatAgorot(b.paidAgorot)} />
+          <Sum label="יתרה לתשלום" value={formatAgorot(b.committedAgorot - b.paidAgorot)} />
+        </View>
+        {total ? (
+          <View style={styles.bar}>
+            <View style={[styles.barPart, { width: `${Math.min(100, (b.paidAgorot / total) * 100)}%`, backgroundColor: colors.ink }]} />
+            <View
+              style={[
+                styles.barPart,
+                { width: `${Math.max(0, Math.min(100, ((b.committedAgorot - b.paidAgorot) / total) * 100))}%`, backgroundColor: colors.stoneDeep },
+              ]}
+            />
+          </View>
+        ) : null}
+        {over ? (
+          <Text variant="caption" color={colors.danger}>{`חריגה של ${formatAgorot(b.committedAgorot - total!)} מהתקציב`}</Text>
+        ) : total ? (
+          <Text variant="caption" color={colors.inkSoft}>{`נותרו ${formatAgorot(total - b.committedAgorot)} לחלוקה`}</Text>
+        ) : (
+          <Text variant="caption" color={colors.inkSoft}>הגדירו תקציב כולל בפרופיל כדי לראות יתרות וחריגות.</Text>
+        )}
+      </Card>
+
+      <ChipGroup>
+        <Chip label="תקציב" selected={tab === 'budget'} onPress={() => setTab('budget')} />
+        <Chip label="תשלומים" count={b.payments.filter((p) => !p.paidAt).length} selected={tab === 'payments'} onPress={() => setTab('payments')} />
+      </ChipGroup>
+
+      {tab === 'budget' ? (
+        <View>
+          {b.items.length === 0 ? (
+            <View style={{ gap: space.md }}>
+              <Text color={colors.inkSoft}>עוד אין שורות תקציב.</Text>
+              {total ? <Button variant="outline" label="חלוקה מומלצת לפי קטגוריות" loading={m.isPending} onPress={splitBySuggestion} /> : null}
+            </View>
+          ) : null}
+          {b.items.map((i) => {
+            const base = i.actualAgorot ?? i.plannedAgorot ?? 0;
+            const itemOver = i.plannedAgorot != null && i.actualAgorot != null && i.actualAgorot > i.plannedAgorot;
+            return (
+              <Pressable key={i.id} onPress={() => editItem(i)} style={styles.row}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text variant="caption" color={colors.inkMuted}>
+                    {budgetCategoryLabel(i.category)}
+                  </Text>
+                  <Text variant="body">{i.title}</Text>
+                  {i.vendorName ? <Text variant="caption" color={colors.inkSoft}>{i.vendorName}</Text> : null}
+                </View>
+                <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                  <Text variant="body" color={itemOver ? colors.danger : colors.ink}>
+                    {formatAgorot(base)}
+                  </Text>
+                  <Text variant="caption" color={colors.inkMuted}>
+                    {i.actualAgorot != null ? `תכנון ${formatAgorot(i.plannedAgorot ?? 0)}` : 'מתוכנן'}
+                  </Text>
+                  {i.paidAgorot ? <Text variant="caption" color={colors.inkSoft}>{`שולם ${formatAgorot(i.paidAgorot)}`}</Text> : null}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : (
+        <View>
+          {b.payments.length === 0 ? <Text color={colors.inkSoft}>הוסיפו תשלומים עם תאריך יעד כדי לקבל תזכורת.</Text> : null}
+          {b.payments.map((p) => {
+            const late = !p.paidAt && p.dueDate != null && p.dueDate < today;
+            return (
+              <View key={p.id} style={styles.row}>
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: Boolean(p.paidAt) }}
+                  accessibilityLabel={`${p.title} שולם`}
+                  onPress={() => m.mutate({ path: `/api/planning/budget/payments/${p.id}`, method: 'PATCH', json: { paid: !p.paidAt } })}
+                  style={[styles.check, p.paidAt && styles.checkOn]}>
+                  {p.paidAt ? <Feather name="check" size={14} color={colors.inverse} /> : null}
+                </Pressable>
+                <Pressable style={{ flex: 1, gap: 2 }} onPress={() => editPay(p)}>
+                  <Text variant="body">{p.title}</Text>
+                  <Text variant="caption" color={late ? colors.danger : colors.inkMuted}>
+                    {p.paidAt ? 'שולם' : p.dueDate ? `${late ? 'באיחור · ' : ''}${formatDayShort(p.dueDate)}` : 'ללא תאריך'}
+                  </Text>
+                </Pressable>
+                <Text variant="body">{formatAgorot(p.amountAgorot)}</Text>
+              </View>
+            );
+          })}
+          <Text variant="caption" color={colors.inkMuted} style={{ marginTop: space.md }}>
+            תשלום מסומן כ״שולם״ רק כשאתם מאשרים זאת.
+          </Text>
+        </View>
+      )}
+
+      <Sheet
+        visible={item != null}
+        onClose={() => setItem(null)}
+        title={item?.id ? 'עריכת שורת תקציב' : 'שורת תקציב חדשה'}
+        footer={
+          <>
+            {item?.id ? (
+              <Button
+                variant="ghost"
+                label="מחיקה"
+                style={{ flex: 1 }}
+                onPress={async () => {
+                  if (await confirm('מחיקה', item.title, 'מחיקה')) await run({ path: `/api/planning/budget/items/${item.id}`, method: 'DELETE' }, () => setItem(null));
+                }}
+              />
+            ) : null}
+            <Button
+              label="שמירה"
+              loading={m.isPending}
+              style={{ flex: 2 }}
+              onPress={() => {
+                if (!item?.title.trim()) return setError('נא לכתוב שם');
+                const json = {
+                  category: item.category,
+                  title: item.title,
+                  vendorName: item.vendorName.trim() || null,
+                  planned: shekelsToAgorot(item.planned),
+                  actual: shekelsToAgorot(item.actual),
+                  notes: item.notes.trim() || null,
+                };
+                void run(
+                  item.id ? { path: `/api/planning/budget/items/${item.id}`, method: 'PATCH', json } : { path: '/api/planning/budget/items', json },
+                  () => setItem(null),
+                );
+              }}
+            />
+          </>
+        }>
+        {item ? (
+          <>
+            <ChipGroup>
+              {BUDGET_CATEGORIES.map((c) => (
+                <Chip
+                  key={c.key}
+                  label={c.label}
+                  selected={item.category === c.key}
+                  onPress={() => setItem({ ...item, category: c.key, title: item.title || c.label })}
+                />
+              ))}
+            </ChipGroup>
+            <TextField label="שם" value={item.title} onChangeText={(title) => setItem({ ...item, title })} />
+            <TextField label="ספק (אם לא מ־SOON)" value={item.vendorName} onChangeText={(vendorName) => setItem({ ...item, vendorName })} />
+            <View style={{ flexDirection: 'row', gap: space.md }}>
+              <View style={{ flex: 1 }}>
+                <TextField label="תכנון (₪)" ltr keyboardType="number-pad" value={item.planned} onChangeText={(planned) => setItem({ ...item, planned })} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <TextField label="בפועל / סוכם (₪)" ltr keyboardType="number-pad" value={item.actual} onChangeText={(actual) => setItem({ ...item, actual })} />
+              </View>
+            </View>
+            <TextField label="הערות" value={item.notes} onChangeText={(notes) => setItem({ ...item, notes })} multiline />
+            {error ? <Text variant="bodySmall" color={colors.danger}>{error}</Text> : null}
+          </>
+        ) : null}
+      </Sheet>
+
+      <Sheet
+        visible={pay != null}
+        onClose={() => setPay(null)}
+        title={pay?.id ? 'עריכת תשלום' : 'תשלום חדש'}
+        footer={
+          <>
+            {pay?.id ? (
+              <Button
+                variant="ghost"
+                label="מחיקה"
+                style={{ flex: 1 }}
+                onPress={async () => {
+                  if (await confirm('מחיקה', pay.title, 'מחיקה')) await run({ path: `/api/planning/budget/payments/${pay.id}`, method: 'DELETE' }, () => setPay(null));
+                }}
+              />
+            ) : null}
+            <Button
+              label="שמירה"
+              loading={m.isPending}
+              style={{ flex: 2 }}
+              onPress={() => {
+                const amount = shekelsToAgorot(pay?.amount ?? '');
+                if (!pay?.title.trim() || amount == null) return setError('נא למלא שם וסכום');
+                const json = { budgetItemId: pay.budgetItemId, title: pay.title, amount, dueDate: pay.dueDate, paid: pay.paid };
+                void run(
+                  pay.id ? { path: `/api/planning/budget/payments/${pay.id}`, method: 'PATCH', json } : { path: '/api/planning/budget/payments', json },
+                  () => setPay(null),
+                );
+              }}
+            />
+          </>
+        }>
+        {pay ? (
+          <>
+            <TextField label="על מה?" value={pay.title} onChangeText={(title) => setPay({ ...pay, title })} />
+            <TextField label="סכום (₪)" ltr keyboardType="number-pad" value={pay.amount} onChangeText={(amount) => setPay({ ...pay, amount })} />
+            <DateField label="תאריך יעד" value={pay.dueDate} onChange={(dueDate) => setPay({ ...pay, dueDate })} clearable />
+            {b.items.length ? (
+              <View style={{ gap: space.sm }}>
+                <Text variant="caption" color={colors.inkSoft}>שורת תקציב</Text>
+                <ChipGroup>
+                  {b.items.map((i) => (
+                    <Chip key={i.id} label={i.title} selected={pay.budgetItemId === i.id} onPress={() => setPay({ ...pay, budgetItemId: pay.budgetItemId === i.id ? null : i.id })} />
+                  ))}
+                </ChipGroup>
+              </View>
+            ) : null}
+            <Chip label="כבר שולם" selected={pay.paid} onPress={() => setPay({ ...pay, paid: !pay.paid })} />
+            {error ? <Text variant="bodySmall" color={colors.danger}>{error}</Text> : null}
+          </>
+        ) : null}
+      </Sheet>
+    </Screen>
+  );
+}
+
+function Sum({ label, value, danger }: { label: string; value: string; danger?: boolean }) {
+  return (
+    <View style={{ flexGrow: 1, flexBasis: '45%', gap: 2 }}>
+      <Text variant="caption" color={colors.inkSoft}>{label}</Text>
+      <Text variant="h2" color={danger ? colors.danger : colors.ink}>{value}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  sumRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
+  bar: { height: 4, backgroundColor: colors.line, flexDirection: 'row', overflow: 'hidden' },
+  barPart: { height: 4 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md, borderBottomWidth: hairline, borderBottomColor: colors.line },
+  check: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: colors.stoneDeep, alignItems: 'center', justifyContent: 'center' },
+  checkOn: { backgroundColor: colors.ink, borderColor: colors.ink },
+});

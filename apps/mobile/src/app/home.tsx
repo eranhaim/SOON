@@ -41,6 +41,7 @@ export default function Home() {
   // Vendors and admins have their own areas.
   if (role === 'vendor') return <Redirect href="/vendor" />;
   if (role === 'admin') return <Redirect href="/admin" />;
+  if (role === 'couple') return <Redirect href="/couple" />;
 
   return (
     <SafeAreaView style={styles.root}>
@@ -53,7 +54,7 @@ export default function Home() {
           {session.user.email}
         </Text>
         <Text variant="bodySmall" color={colors.inkMuted}>
-          {role === 'couple' ? 'כאן יופיעו הספירה לאחור, ההשראה וכלי התכנון שלכם.' : 'טוען פרופיל…'}
+          טוען פרופיל…
         </Text>
         <Button
           variant="outline"

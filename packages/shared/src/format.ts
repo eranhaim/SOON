@@ -34,3 +34,9 @@ export function regionLabel(slug: string): string {
 export function categoryLabel(slug: string): string {
   return VENDOR_CATEGORIES.find((c) => c.slug === slug)?.he ?? slug;
 }
+
+const dayShortHe = new Intl.DateTimeFormat('he-IL', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+/** Civil date YYYY-MM-DD → "יום ה׳, 17 ביוני 2027" (server-generated text, e.g. inquiry messages). */
+export function formatDayShortHe(iso: string): string {
+  return dayShortHe.format(new Date(`${iso.slice(0, 10)}T00:00:00Z`));
+}

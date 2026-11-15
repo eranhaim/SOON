@@ -29,10 +29,16 @@ import {
 
 import {
   AVAILABILITY_STATUSES,
+  CALENDAR_ENTRY_KINDS,
+  GUEST_SIDES,
+  LEAD_SOURCES,
   LEAD_STATUSES,
   MEDIA_KINDS,
+  REVIEW_STATUSES,
+  RSVP_STATUSES,
   VENDOR_STATUSES,
   WEDDING_CATEGORY_STATUSES,
+  WEDDING_EVENT_KINDS,
   WEDDING_MEMBER_ROLES,
 } from '@soon/shared';
 
@@ -45,6 +51,12 @@ export const leadStatusEnum = pgEnum('lead_status', LEAD_STATUSES);
 export const weddingCategoryStatusEnum = pgEnum('wedding_category_status', WEDDING_CATEGORY_STATUSES);
 export const weddingMemberRoleEnum = pgEnum('wedding_member_role', WEDDING_MEMBER_ROLES);
 export const mediaKindEnum = pgEnum('media_kind', MEDIA_KINDS);
+export const calendarEntryKindEnum = pgEnum('calendar_entry_kind', CALENDAR_ENTRY_KINDS);
+export const leadSourceEnum = pgEnum('lead_source', LEAD_SOURCES);
+export const reviewStatusEnum = pgEnum('review_status', REVIEW_STATUSES);
+export const guestSideEnum = pgEnum('guest_side', GUEST_SIDES);
+export const rsvpStatusEnum = pgEnum('rsvp_status', RSVP_STATUSES);
+export const weddingEventKindEnum = pgEnum('wedding_event_kind', WEDDING_EVENT_KINDS);
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -223,6 +235,10 @@ export const lead = pgTable(
     eventDate: date('event_date'),
     location: text('location'),
     status: leadStatusEnum('status').notNull().default('new'),
+    source: leadSourceEnum('source').notNull().default('app'),
+    guestCount: integer('guest_count'),
+    /** The package the couple asked about, if any. */
+    packageId: uuid('package_id').references(() => vendorPackage.id, { onDelete: 'set null' }),
     quotedPriceAgorot: integer('quoted_price_agorot'),
     notes: text('notes'),
     nextAction: text('next_action'),
@@ -246,9 +262,11 @@ export const availabilityEntry = pgTable(
       .notNull()
       .references(() => vendor.id, { onDelete: 'cascade' }),
     status: availabilityStatusEnum('status').notNull(),
+    kind: calendarEntryKindEnum('kind').notNull().default('event'),
     startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
     endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
     title: text('title'),
+    location: text('location'),
     leadId: uuid('lead_id').references(() => lead.id, { onDelete: 'set null' }),
     note: text('note'),
     ...timestamps,
@@ -273,6 +291,9 @@ export const conversation = pgTable(
       .references(() => wedding.id, { onDelete: 'cascade' }),
     leadId: uuid('lead_id').references(() => lead.id, { onDelete: 'set null' }),
     lastMessageAt: timestamp('last_message_at', { withTimezone: true }),
+    /** Read receipts per side: everything the other side sent before this is "read". */
+    vendorReadAt: timestamp('vendor_read_at', { withTimezone: true }),
+    weddingReadAt: timestamp('wedding_read_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -335,4 +356,205 @@ export const adminAction = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('admin_action_target_idx').on(t.targetType, t.targetId, t.createdAt)],
+);
+
+// ---------- vendor client payments (spec §13) ----------
+/**
+ * Payments a vendor records against a client (deposit, balance...), paid in or outside the app.
+ * `paid_at` is only ever set by an explicit user action (spec §13: never from an AI guess).
+ */
+export const leadPayment = pgTable(
+  'lead_payment',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    leadId: uuid('lead_id')
+      .notNull()
+      .references(() => lead.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    amountAgorot: integer('amount_agorot').notNull(),
+    dueDate: date('due_date'),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    note: text('note'),
+    ...timestamps,
+  },
+  (t) => [index('lead_payment_lead_idx').on(t.leadId), check('lead_payment_amount_ck', sql`${t.amountAgorot} >= 0`)],
+);
+
+// ---------- couple planning (spec §7) ----------
+export const task = pgTable(
+  'task',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id')
+      .notNull()
+      .references(() => wedding.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    notes: text('notes'),
+    dueDate: date('due_date'),
+    remindAt: timestamp('remind_at', { withTimezone: true }),
+    doneAt: timestamp('done_at', { withTimezone: true }),
+    categorySlug: text('category_slug').references(() => category.slug),
+    /** Set on auto-generated tasks so regeneration never duplicates them. */
+    templateKey: text('template_key'),
+    ...timestamps,
+  },
+  (t) => [
+    index('task_wedding_due_idx').on(t.weddingId, t.dueDate),
+    unique('task_wedding_template_uq').on(t.weddingId, t.templateKey),
+  ],
+);
+
+/** One line of the wedding budget (spec §7.2). A SOON vendor or an external one. */
+export const budgetItem = pgTable(
+  'budget_item',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id')
+      .notNull()
+      .references(() => wedding.id, { onDelete: 'cascade' }),
+    /** BUDGET_CATEGORIES key (venue, photography, ..., other). */
+    category: text('category').notNull(),
+    title: text('title').notNull(),
+    vendorId: uuid('vendor_id').references(() => vendor.id, { onDelete: 'set null' }),
+    vendorName: text('vendor_name'),
+    plannedAgorot: integer('planned_agorot'),
+    /** What was actually agreed (the commitment). */
+    actualAgorot: integer('actual_agorot'),
+    notes: text('notes'),
+    ...timestamps,
+  },
+  (t) => [index('budget_item_wedding_idx').on(t.weddingId)],
+);
+
+/** Scheduled / paid payments for a budget line (spec §7.2: due dates and reminders). */
+export const weddingPayment = pgTable(
+  'wedding_payment',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id')
+      .notNull()
+      .references(() => wedding.id, { onDelete: 'cascade' }),
+    budgetItemId: uuid('budget_item_id').references(() => budgetItem.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    amountAgorot: integer('amount_agorot').notNull(),
+    dueDate: date('due_date'),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    index('wedding_payment_wedding_idx').on(t.weddingId, t.dueDate),
+    check('wedding_payment_amount_ck', sql`${t.amountAgorot} >= 0`),
+  ],
+);
+
+export const guest = pgTable(
+  'guest',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id')
+      .notNull()
+      .references(() => wedding.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    side: guestSideEnum('side').notNull().default('shared'),
+    phone: text('phone'),
+    rsvp: rsvpStatusEnum('rsvp').notNull().default('invited'),
+    partySize: integer('party_size').notNull().default(1),
+    tableLabel: text('table_label'),
+    notes: text('notes'),
+    ...timestamps,
+  },
+  (t) => [index('guest_wedding_idx').on(t.weddingId), check('guest_party_size_ck', sql`${t.partySize} between 1 and 50`)],
+);
+
+/** The couple's own calendar (spec §7.3): vendor meetings, tastings, fittings, deadlines. */
+export const weddingEvent = pgTable(
+  'wedding_event',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id')
+      .notNull()
+      .references(() => wedding.id, { onDelete: 'cascade' }),
+    kind: weddingEventKindEnum('kind').notNull().default('meeting'),
+    title: text('title').notNull(),
+    startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+    endsAt: timestamp('ends_at', { withTimezone: true }),
+    location: text('location'),
+    vendorId: uuid('vendor_id').references(() => vendor.id, { onDelete: 'set null' }),
+    notes: text('notes'),
+    ...timestamps,
+  },
+  (t) => [
+    index('wedding_event_wedding_idx').on(t.weddingId, t.startsAt),
+    check('wedding_event_range_ck', sql`${t.endsAt} IS NULL OR ${t.startsAt} < ${t.endsAt}`),
+  ],
+);
+
+// ---------- reviews & trust (spec §17) ----------
+export const review = pgTable(
+  'review',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    vendorId: uuid('vendor_id')
+      .notNull()
+      .references(() => vendor.id, { onDelete: 'cascade' }),
+    weddingId: uuid('wedding_id')
+      .notNull()
+      .references(() => wedding.id, { onDelete: 'cascade' }),
+    authorUserId: text('author_user_id').references(() => user.id, { onDelete: 'set null' }),
+    rating: integer('rating').notNull(),
+    ratingProfessionalism: integer('rating_professionalism'),
+    ratingService: integer('rating_service'),
+    ratingAvailability: integer('rating_availability'),
+    ratingValue: integer('rating_value'),
+    body: text('body').notNull(),
+    /** A booked/completed lead between this wedding and vendor existed when it was written. */
+    verified: boolean('verified').notNull().default(false),
+    status: reviewStatusEnum('status').notNull().default('published'),
+    vendorReply: text('vendor_reply'),
+    vendorRepliedAt: timestamp('vendor_replied_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    unique('review_vendor_wedding_uq').on(t.vendorId, t.weddingId),
+    index('review_vendor_status_idx').on(t.vendorId, t.status),
+    check(
+      'review_ratings_ck',
+      sql`${t.rating} between 1 and 5
+        and (${t.ratingProfessionalism} is null or ${t.ratingProfessionalism} between 1 and 5)
+        and (${t.ratingService} is null or ${t.ratingService} between 1 and 5)
+        and (${t.ratingAvailability} is null or ${t.ratingAvailability} between 1 and 5)
+        and (${t.ratingValue} is null or ${t.ratingValue} between 1 and 5)`,
+    ),
+  ],
+);
+
+export const reviewReport = pgTable(
+  'review_report',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    reviewId: uuid('review_id')
+      .notNull()
+      .references(() => review.id, { onDelete: 'cascade' }),
+    reporterUserId: text('reporter_user_id').references(() => user.id, { onDelete: 'set null' }),
+    reason: text('reason').notNull(),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('review_report_open_idx').on(t.resolvedAt, t.createdAt),
+    unique('review_report_once_uq').on(t.reviewId, t.reporterUserId),
+  ],
+);
+
+/** Daily profile-view counter (spec §9 analytics). One row per vendor per Israeli day. */
+export const vendorStatDaily = pgTable(
+  'vendor_stat_daily',
+  {
+    vendorId: uuid('vendor_id')
+      .notNull()
+      .references(() => vendor.id, { onDelete: 'cascade' }),
+    day: date('day').notNull(),
+    views: integer('views').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.vendorId, t.day] })],
 );

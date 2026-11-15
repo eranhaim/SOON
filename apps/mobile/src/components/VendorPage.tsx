@@ -4,7 +4,7 @@
  */
 import Feather from '@expo/vector-icons/Feather';
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Linking, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { formatAgorot, formatPriceRange, regionLabel, type VendorPublicDTO } from '@soon/shared';
@@ -14,7 +14,18 @@ import { colors, hairline, space } from '@/theme/tokens';
 import { Text } from './Text';
 import { Card, Divider, SectionTitle, type IconName } from './ui';
 
-export function VendorPage({ vendor }: { vendor: VendorPublicDTO }) {
+export type VendorAction = 'save' | 'message' | 'availability' | 'quote';
+
+type Props = {
+  vendor: VendorPublicDTO;
+  /** Wires the fixed action bar (spec §5). Without it the bar renders inert (previews, admin). */
+  onAction?: (action: VendorAction) => void;
+  saved?: boolean;
+  /** Extra sections at the end (reviews). */
+  footer?: ReactNode;
+};
+
+export function VendorPage({ vendor, onAction, saved, footer }: Props) {
   const window = useWindowDimensions();
   // Measure the real container width (the page can sit in a narrow column, e.g. admin review).
   const [measured, setMeasured] = useState<number | null>(null);
@@ -58,15 +69,18 @@ export function VendorPage({ vendor }: { vendor: VendorPublicDTO }) {
             <Meta icon="map-pin" text={vendor.regions.map(regionLabel).join(' · ')} />
           ) : null}
           {priceRange ? <Meta icon="tag" text={priceRange} /> : null}
-          <Meta icon="star" text="אין עדיין ביקורות" />
+          <Meta
+            icon="star"
+            text={vendor.ratingAvg != null ? `${vendor.ratingAvg.toFixed(1)} · ${vendor.reviewCount} ביקורות` : 'אין עדיין ביקורות'}
+          />
         </View>
 
-        {/* Fixed actions (spec §5). Wired up in later phases. */}
+        {/* Fixed actions (spec §5). */}
         <View style={styles.actions}>
-          <Action icon="heart" label="שמירה" />
-          <Action icon="message-circle" label="הודעה" />
-          <Action icon="calendar" label="בדיקת זמינות" />
-          <Action icon="file-text" label="הצעת מחיר" />
+          <Action icon="heart" label={saved ? 'נשמר' : 'שמירה'} active={saved} onPress={onAction && (() => onAction('save'))} />
+          <Action icon="message-circle" label="הודעה" onPress={onAction && (() => onAction('message'))} />
+          <Action icon="calendar" label="בדיקת זמינות" onPress={onAction && (() => onAction('availability'))} />
+          <Action icon="file-text" label="הצעת מחיר" onPress={onAction && (() => onAction('quote'))} />
         </View>
 
         {vendor.about ? (
@@ -150,6 +164,7 @@ export function VendorPage({ vendor }: { vendor: VendorPublicDTO }) {
             {vendor.websiteUrl ? <LinkOut icon="globe" label="אתר" url={vendor.websiteUrl} /> : null}
           </View>
         ) : null}
+        {footer}
       </View>
     </View>
   );
@@ -166,14 +181,22 @@ function Meta({ icon, text }: { icon: IconName; text: string }) {
   );
 }
 
-function Action({ icon, label }: { icon: IconName; label: string }) {
+function Action({ icon, label, onPress, active }: { icon: IconName; label: string; onPress?: () => void; active?: boolean }) {
   return (
-    <View style={styles.action} accessibilityLabel={`${label} (בקרוב)`}>
-      <Feather name={icon} size={20} color={colors.ink} />
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active, disabled: !onPress }}
+      disabled={!onPress}
+      onPress={onPress}
+      style={({ pressed }) => [styles.action, !onPress && { opacity: 0.55 }, pressed && { opacity: 0.6 }]}>
+      <View style={[styles.actionIcon, active && { backgroundColor: colors.ink }]}>
+        <Feather name={icon} size={20} color={active ? colors.inverse : colors.ink} />
+      </View>
       <Text variant="caption" align="center">
         {label}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -241,7 +264,8 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     paddingVertical: space.md,
   },
-  action: { flex: 1, alignItems: 'center', gap: 6, opacity: 0.55 },
+  action: { flex: 1, alignItems: 'center', gap: 6 },
+  actionIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   section: { gap: space.md },
   pkgHead: { flexDirection: 'row', alignItems: 'baseline', gap: space.md },
   includeRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },

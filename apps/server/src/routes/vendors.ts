@@ -1,10 +1,13 @@
 import { randomInt } from 'node:crypto';
 
-import { and, asc, eq, inArray, max } from 'drizzle-orm';
-import type { FastifyInstance, FastifyReply } from 'fastify';
+import { and, asc, eq, inArray, max, sql } from 'drizzle-orm';
+import type { FastifyInstance } from 'fastify';
 
 import {
   addMediaSchema,
+  addMonths,
+  APP_TIME_ZONE,
+  todayIso,
   getVendorReadiness,
   reorderSchema,
   vendorFaqInputSchema,
@@ -17,8 +20,10 @@ import {
 } from '@soon/shared';
 
 import { db } from '../db';
-import { category, vendor, vendorFaq, vendorMedia, vendorPackage, vendorRegion } from '../db/schema';
+import { category, review, vendor, vendorFaq, vendorMedia, vendorPackage, vendorRegion } from '../db/schema';
+import { badRequest, isCheckViolation } from '../http';
 import { getUser, parseBody, requireOwnVendor, requireVendorUser } from '../session';
+import { countProfileView } from '../services/stats';
 import { storage } from '../storage';
 import { vendorScope } from './uploads';
 
@@ -38,12 +43,16 @@ function randomSlug() {
 }
 
 export async function loadVendor(row: VendorRow): Promise<VendorOwnerDTO> {
-  const [cat, regions, media, packages, faqs] = await Promise.all([
+  const [cat, regions, media, packages, faqs, [rating]] = await Promise.all([
     db.select({ label: category.labelHe }).from(category).where(eq(category.slug, row.categorySlug)).limit(1),
     db.select({ region: vendorRegion.region }).from(vendorRegion).where(eq(vendorRegion.vendorId, row.id)),
     db.select().from(vendorMedia).where(eq(vendorMedia.vendorId, row.id)).orderBy(asc(vendorMedia.sortOrder)),
     db.select().from(vendorPackage).where(eq(vendorPackage.vendorId, row.id)).orderBy(asc(vendorPackage.sortOrder)),
     db.select().from(vendorFaq).where(eq(vendorFaq.vendorId, row.id)).orderBy(asc(vendorFaq.sortOrder)),
+    db
+      .select({ avg: sql<string | null>`round(avg(${review.rating})::numeric, 1)`, n: sql<number>`count(*)::int` })
+      .from(review)
+      .where(and(eq(review.vendorId, row.id), eq(review.status, 'published'))),
   ]);
   return {
     id: row.id,
@@ -66,6 +75,8 @@ export async function loadVendor(row: VendorRow): Promise<VendorOwnerDTO> {
     priceToAgorot: row.priceToAgorot,
     cancellationPolicy: row.cancellationPolicy,
     isFeatured: row.isFeatured,
+    ratingAvg: rating?.avg == null ? null : Number(rating.avg),
+    reviewCount: rating?.n ?? 0,
     regions: regions.map((r) => r.region as RegionSlug),
     media: media.map((m) => ({ id: m.id, kind: m.kind, url: m.url, caption: m.caption, sortOrder: m.sortOrder })),
     packages: packages.map((p) => ({
@@ -108,15 +119,6 @@ async function reorder(table: SortableTable, vendorId: string, ids: string[]) {
         .where(and(eq(table.id, id), eq(table.vendorId, vendorId)));
     }
   });
-}
-
-/** Postgres check-constraint violation (e.g. price range) → 400 instead of 500. */
-function isCheckViolation(err: unknown) {
-  return typeof err === 'object' && err !== null && (err as { code?: string }).code === '23514';
-}
-
-async function badRequest(reply: FastifyReply, error: string, field?: string) {
-  return reply.status(400).send({ error, field });
 }
 
 // ---------- routes ----------
@@ -376,17 +378,44 @@ export async function vendorRoutes(app: FastifyInstance) {
   });
 
   /**
+   * Public availability for one month (spec §5 "Check Availability"): which days are busy or
+   * explicitly open. Only dates, never what the vendor is doing.
+   */
+  app.get<{ Params: { slug: string }; Querystring: { month?: string } }>('/api/vendors/:slug/availability', async (request, reply) => {
+    const month = /^\d{4}-\d{2}$/.test(request.query.month ?? '') ? request.query.month! : todayIso().slice(0, 7);
+    const [row] = await db
+      .select({ id: vendor.id })
+      .from(vendor)
+      .where(and(eq(vendor.slug, request.params.slug), eq(vendor.status, 'approved')));
+    if (!row) return reply.status(404).send({ error: 'Not found' });
+    const from = `${month}-01`;
+    const to = addMonths(from, 1);
+    const days = await db.execute<{ day: string; busy: boolean }>(sql`
+      select d::date::text as day,
+        bool_or(e.status in ('booked','unavailable')) as busy
+      from availability_entry e,
+        generate_series((e.starts_at at time zone ${APP_TIME_ZONE})::date,
+                        ((e.ends_at - interval '1 second') at time zone ${APP_TIME_ZONE})::date, interval '1 day') d
+      where e.vendor_id = ${row.id} and e.status in ('booked','unavailable','available')
+        and e.starts_at < (${to}::date::timestamp at time zone ${APP_TIME_ZONE})
+        and e.ends_at > (${from}::date::timestamp at time zone ${APP_TIME_ZONE})
+      group by 1`);
+    const inMonth = days.rows.filter((d) => d.day.startsWith(month));
+    return { month, busy: inMonth.filter((d) => d.busy).map((d) => d.day), open: inMonth.filter((d) => !d.busy).map((d) => d.day) };
+  });
+
+  /**
    * Public vendor page. Only approved storefronts are public; the owner and admins can
    * see any status (preview / review).
    */
   app.get<{ Params: { slug: string } }>('/api/vendors/:slug', async (request, reply) => {
     const [row] = await db.select().from(vendor).where(eq(vendor.slug, request.params.slug)).limit(1);
     if (!row) return reply.status(404).send({ error: 'Not found' });
-    if (row.status !== 'approved') {
-      const user = await getUser(request);
-      const allowed = user && (user.id === row.ownerUserId || user.role === 'admin');
-      if (!allowed) return reply.status(404).send({ error: 'Not found' });
-    }
+    const viewer = await getUser(request);
+    const isOwnerOrAdmin = Boolean(viewer && (viewer.id === row.ownerUserId || viewer.role === 'admin'));
+    if (row.status !== 'approved' && !isOwnerOrAdmin) return reply.status(404).send({ error: 'Not found' });
+    // Count real profile views only (spec §9 analytics): not the owner previewing, not admins.
+    if (row.status === 'approved' && !isOwnerOrAdmin) void countProfileView(row.id);
     return toPublic(await loadVendor(row));
   });
 }
