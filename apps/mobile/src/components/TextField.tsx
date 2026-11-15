@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
-import { colors, fonts, hairline, space, textStart } from '@/theme/tokens';
+import { colors, fonts, hairline, radius, space, textStart } from '@/theme/tokens';
 
 import { Text } from './Text';
 
@@ -11,19 +12,31 @@ type Props = TextInputProps & {
   ltr?: boolean;
 };
 
-/** Underlined editorial input. */
-export function TextField({ label, error, ltr, style, ...rest }: Props) {
+/** Soft filled input with a floating-style label above and an accent focus ring. */
+export function TextField({ label, error, ltr, style, onFocus, onBlur, ...rest }: Props) {
+  const [focused, setFocused] = useState(false);
   return (
     <View style={styles.wrap}>
-      <Text variant="caption" color={colors.inkSoft}>
+      <Text variant="caption" color={focused ? colors.accent : colors.inkSoft} style={styles.label}>
         {label}
       </Text>
       <TextInput
         placeholderTextColor={colors.inkMuted}
+        onFocus={(e) => {
+          setFocused(true);
+          onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setFocused(false);
+          onBlur?.(e);
+        }}
         style={[
           styles.input,
           { textAlign: ltr ? 'left' : textStart, writingDirection: ltr ? 'ltr' : 'rtl' },
+          focused && styles.inputFocused,
           error ? styles.inputError : null,
+          // Remove the browser focus outline; the border shows focus instead.
+          { outlineStyle: 'none' } as object,
           style,
         ]}
         {...rest}
@@ -38,14 +51,20 @@ export function TextField({ label, error, ltr, style, ...rest }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: space.xs },
+  wrap: { gap: 6 },
+  label: { fontFamily: fonts.bodyMedium, paddingHorizontal: 4 },
   input: {
     fontFamily: fonts.body,
-    fontSize: 17,
+    fontSize: 16,
     color: colors.ink,
-    paddingVertical: space.sm,
-    borderBottomWidth: hairline,
-    borderBottomColor: colors.stoneDeep,
+    minHeight: 52,
+    paddingVertical: 14,
+    paddingHorizontal: space.md,
+    backgroundColor: colors.surface,
+    borderWidth: hairline,
+    borderColor: colors.line,
+    borderRadius: radius.md,
   },
-  inputError: { borderBottomColor: colors.danger },
+  inputFocused: { borderColor: colors.accent, boxShadow: '0 0 0 3px rgba(110, 30, 58, 0.10)' },
+  inputError: { borderColor: colors.danger },
 });

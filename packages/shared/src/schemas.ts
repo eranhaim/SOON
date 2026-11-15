@@ -145,6 +145,8 @@ export const weddingUpdateSchema = z.object({
   region: region.nullable().optional(),
   venueName: z.string().trim().max(120).nullable().optional(),
   budgetTotal: agorot.nullable().optional(),
+  /** Home screen background photo (https URL). */
+  coverImageUrl: z.url().max(1000).nullable().optional(),
   closedCategories: z.array(categorySlug).optional(),
   neededCategories: z.array(categorySlug).optional(),
 });
@@ -289,4 +291,12 @@ export const calendarEntryUpdateSchema = z.object({
   location: nullableText(200),
   note: nullableText(2000),
   leadId: z.uuid().nullable().optional(),
+});
+
+// ---------- inspiration boards ----------
+export const boardCreateSchema = z.object({ title: z.string().trim().min(1).max(60) });
+export const boardItemCreateSchema = z.object({
+  imageUrl: z.url().max(1000),
+  vendorId: z.uuid().nullable().optional(),
+  note: z.string().trim().max(500).nullable().optional(),
 });

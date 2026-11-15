@@ -342,6 +342,40 @@ export const savedVendor = pgTable(
   (t) => [primaryKey({ columns: [t.weddingId, t.vendorId] })],
 );
 
+// ---------- inspiration boards (spec §6) ----------
+/** A couple's mood board ("my dress", "flowers"…). Belongs to the wedding, like saved vendors. */
+export const board = pgTable(
+  'board',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id')
+      .notNull()
+      .references(() => wedding.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    /** Shown when the board has no items yet. */
+    coverUrl: text('cover_url'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('board_wedding_idx').on(t.weddingId)],
+);
+
+/** One picture on a board, optionally linked to the vendor whose work it is. */
+export const boardItem = pgTable(
+  'board_item',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    boardId: uuid('board_id')
+      .notNull()
+      .references(() => board.id, { onDelete: 'cascade' }),
+    imageUrl: text('image_url').notNull(),
+    vendorId: uuid('vendor_id').references(() => vendor.id, { onDelete: 'set null' }),
+    note: text('note'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('board_item_board_idx').on(t.boardId)],
+);
+
 // ---------- admin action log (spec §17) ----------
 export const adminAction = pgTable(
   'admin_action',

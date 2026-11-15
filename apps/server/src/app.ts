@@ -8,9 +8,11 @@ import { db } from './db';
 import { category } from './db/schema';
 import { env, isDev } from './env';
 import { adminRoutes } from './routes/admin';
+import { boardRoutes } from './routes/boards';
 import { conversationRoutes } from './routes/conversations';
 import { coupleHomeRoutes } from './routes/couple-home';
 import { crmRoutes } from './routes/crm';
+import { demoRoutes } from './routes/demo';
 import { exploreRoutes } from './routes/explore';
 import { meRoutes } from './routes/me';
 import { planningRoutes } from './routes/planning';
@@ -66,6 +68,8 @@ export async function buildApp() {
   await app.register(planningRoutes);
   await app.register(conversationRoutes);
   await app.register(crmRoutes);
+  await app.register(boardRoutes);
+  if (env.DEMO_TOOLS) await app.register(demoRoutes);
 
   // ---- Health / meta ----
   app.get('/health', async () => {

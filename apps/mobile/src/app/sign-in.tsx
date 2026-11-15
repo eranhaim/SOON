@@ -1,6 +1,9 @@
+import Feather from '@expo/vector-icons/Feather';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { USER_ROLES, type UserRole } from '@soon/shared';
@@ -11,7 +14,8 @@ import { TextField } from '@/components/TextField';
 import { api } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
 import { homeForRole } from '@/lib/session';
-import { colors, hairline, space } from '@/theme/tokens';
+import { Reveal } from '@/components/motion';
+import { colors, fonts, hairline, PHOTOS, space } from '@/theme/tokens';
 
 const TOO_MANY = 'יותר מדי ניסיונות. נסו שוב בעוד דקה.';
 /** Must match emailAndPassword.minPasswordLength in apps/server/src/auth.ts. */
@@ -89,13 +93,45 @@ export default function SignIn() {
   }
 
   return (
-    <SafeAreaView style={styles.root}>
+    <View style={styles.root}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Text variant="h1">{role === 'vendor' ? 'כניסה לעסקים' : 'כניסה'}</Text>
-          <Text variant="body" color={colors.inkSoft} style={styles.lead}>
-            {mode === 'signin' ? 'התחברו לחשבון שלכם' : 'צרו חשבון חדש'}
-          </Text>
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <View style={styles.banner}>
+            <Image
+              source={role === 'vendor' ? PHOTOS.heroTable : PHOTOS.heroCouple}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              transition={400}
+            />
+            <LinearGradient
+              colors={['rgba(36,18,15,0.25)', 'rgba(36,18,15,0.1)', 'rgba(251,247,241,1)']}
+              locations={[0, 0.55, 1]}
+              style={StyleSheet.absoluteFill}
+            />
+            <SafeAreaView edges={['top']} style={styles.bannerTop}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="חזרה"
+                onPress={() => (router.canGoBack() ? router.back() : router.replace('/choose-role'))}
+                style={styles.back}>
+                <Feather name="chevron-right" size={22} color={colors.ink} />
+              </Pressable>
+              <Text color={colors.inverse} style={styles.logo}>
+                SOON
+              </Text>
+              <View style={{ width: 40 }} />
+            </SafeAreaView>
+          </View>
+          <View style={styles.content}>
+          <Reveal>
+            <Text variant="eyebrow" color={colors.gold}>
+              {role === 'vendor' ? 'לעסקים' : 'לזוגות'}
+            </Text>
+            <Text variant="h1">{mode === 'signin' ? 'שמחים לראות אתכם' : 'נעים להכיר'}</Text>
+            <Text variant="body" color={colors.inkSoft} style={styles.lead}>
+              {mode === 'signin' ? 'התחברו לחשבון שלכם' : 'צרו חשבון חדש בכמה שניות'}
+            </Text>
+          </Reveal>
 
           {providers.length > 0 && (
             <>
@@ -150,15 +186,20 @@ export default function SignIn() {
               onPress={switchMode}
             />
           </View>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  content: { padding: space.lg, paddingTop: space.xxl, gap: space.sm, maxWidth: 480, width: '100%', alignSelf: 'center' },
+  banner: { height: 260, overflow: 'hidden' },
+  bannerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.lg, paddingTop: space.md },
+  back: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.9)', alignItems: 'center', justifyContent: 'center' },
+  logo: { fontFamily: fonts.displayLight, fontSize: 24, letterSpacing: 8, writingDirection: 'ltr' },
+  content: { padding: space.lg, paddingTop: 0, marginTop: -space.lg, gap: space.sm, maxWidth: 480, width: '100%', alignSelf: 'center' },
   lead: { marginBottom: space.lg },
   stack: { gap: space.md },
   divider: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginVertical: space.lg },

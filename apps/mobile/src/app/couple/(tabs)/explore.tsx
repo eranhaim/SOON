@@ -16,16 +16,17 @@ import {
 
 import { Button } from '@/components/Button';
 import { DateField } from '@/components/DateField';
+import { PressableScale, Reveal } from '@/components/motion';
 import { Sheet } from '@/components/Sheet';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
 import { VendorCard } from '@/components/VendorCard';
-import { Chip, ChipGroup } from '@/components/ui';
+import { Chip, ChipGroup, EmptyState } from '@/components/ui';
 import { api } from '@/lib/api';
-import { formatDay } from '@/lib/dates';
+import { formatDayDots } from '@/lib/dates';
 import { keys } from '@/lib/query';
 import { useWedding } from '@/lib/wedding';
-import { colors, fonts, hairline, radius, space, textStart } from '@/theme/tokens';
+import { colors, fonts, hairline, radius, shadow, space, textStart } from '@/theme/tokens';
 
 type Filters = {
   q: string;
@@ -60,17 +61,21 @@ function toQuery(f: Filters) {
   return p;
 }
 
-/** Vendor search (spec §5): category, region, date, price, availability, sort. */
+/** Vendor search (spec §5): text, category, availability on the wedding date, filters, sort. */
 export default function Explore() {
   const params = useLocalSearchParams<{ category?: string }>();
   const wedding = useWedding().data?.wedding;
   const { width } = useWindowDimensions();
-  const columns = width >= 1000 ? 3 : width >= 640 ? 2 : 1;
+  const columns = width >= 1000 ? 4 : width >= 640 ? 3 : 2;
+  const closed = useMemo(
+    () => new Set((wedding?.categories ?? []).filter((c) => c.status === 'closed').map((c) => c.slug)),
+    [wedding],
+  );
 
   const [filters, setFilters] = useState<Filters>({
     q: '',
     category: params.category,
-    region: wedding?.region ?? undefined,
+    region: undefined,
     date: wedding?.weddingDate ?? null,
     priceMin: '',
     priceMax: '',
@@ -82,9 +87,17 @@ export default function Explore() {
   const [text, setText] = useState('');
 
   // A category link from home (or a nudge) replaces the current category.
-  useEffect(() => {
+  const [seenCategory, setSeenCategory] = useState(params.category);
+  if (params.category !== seenCategory) {
+    setSeenCategory(params.category);
     if (params.category) setFilters((f) => ({ ...f, category: params.category }));
-  }, [params.category]);
+  }
+  // The wedding may load after the first render: adopt its date once.
+  const [adopted, setAdopted] = useState(Boolean(wedding));
+  if (!adopted && wedding) {
+    setAdopted(true);
+    setFilters((f) => ({ ...f, date: f.date ?? wedding.weddingDate }));
+  }
 
   // Debounced free-text search.
   useEffect(() => {
@@ -103,53 +116,74 @@ export default function Explore() {
   const items = q.data?.pages.flatMap((p) => p.items) ?? [];
   const total = q.data?.pages[0]?.total;
 
-  const activeCount = [filters.region, filters.date, filters.priceMin, filters.priceMax, filters.onlyAvailable || undefined].filter(Boolean).length;
+  const activeCount = [filters.region, filters.priceMin, filters.priceMax].filter(Boolean).length;
+  const dateLabel = filters.date ? formatDayDots(filters.date) : null;
 
   const header = (
-    <View style={{ gap: space.md, paddingBottom: space.md }}>
-      <Text variant="h1">גילוי ספקים</Text>
-      <View style={styles.searchRow}>
-        <View style={styles.search}>
-          <Feather name="search" size={18} color={colors.inkSoft} />
-          <TextInput
-            value={text}
-            onChangeText={setText}
-            placeholder="מה אתם מחפשים?"
-            placeholderTextColor={colors.inkMuted}
-            style={[styles.searchInput, { textAlign: textStart }]}
-            returnKeyType="search"
-            accessibilityLabel="חיפוש"
-          />
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="סינון"
-          onPress={() => {
-            setDraft(filters);
-            setSheet(true);
-          }}
-          style={[styles.filterBtn, activeCount > 0 && styles.filterBtnOn]}>
-          <Feather name="sliders" size={18} color={activeCount ? colors.inverse : colors.ink} />
-          {activeCount ? (
-            <Text variant="caption" color={colors.inverse}>
-              {activeCount}
-            </Text>
-          ) : null}
-        </Pressable>
+    <View style={{ gap: space.md, paddingBottom: space.lg }}>
+      <View style={{ gap: 4, marginTop: space.md }}>
+        <Text variant="eyebrow" color={colors.gold}>
+          חיפוש ספקים
+        </Text>
+        <Text variant="h1">מה אתם מחפשים?</Text>
+      </View>
+      <View style={styles.search}>
+        <Feather name="search" size={18} color={colors.gold} />
+        <TextInput
+          value={text}
+          onChangeText={setText}
+          placeholder="צלם, דיג׳יי, איפור, אולם…"
+          placeholderTextColor={colors.inkMuted}
+          style={[styles.searchInput, { textAlign: textStart }, { outlineStyle: 'none' } as object]}
+          returnKeyType="search"
+          accessibilityLabel="חיפוש"
+        />
       </View>
       <FlatList
         horizontal
         data={[{ slug: undefined, he: 'הכל' }, ...VENDOR_CATEGORIES]}
         keyExtractor={(c) => c.slug ?? 'all'}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: space.sm }}
+        style={{ marginHorizontal: -space.lg }}
+        contentContainerStyle={{ gap: space.sm, paddingHorizontal: space.lg, paddingVertical: 6 }}
         renderItem={({ item }) => (
-          <Chip label={item.he} selected={filters.category === item.slug} onPress={() => setFilters((f) => ({ ...f, category: item.slug }))} />
+          <Chip
+            label={item.slug && closed.has(item.slug) ? `${item.he} ✓` : item.he}
+            selected={filters.category === item.slug}
+            onPress={() => setFilters((f) => ({ ...f, category: item.slug }))}
+          />
         )}
       />
+      <View style={styles.toolRow}>
+        {dateLabel ? (
+          <PressableScale
+            accessibilityRole="switch"
+            accessibilityState={{ checked: filters.onlyAvailable }}
+            onPress={() => setFilters((f) => ({ ...f, onlyAvailable: !f.onlyAvailable }))}
+            style={[styles.tool, filters.onlyAvailable && styles.toolOn]}>
+            <Feather name="calendar" size={15} color={filters.onlyAvailable ? colors.inverse : colors.accent} />
+            <Text variant="bodySmall" color={filters.onlyAvailable ? colors.inverse : colors.ink} style={{ fontFamily: fonts.bodyMedium }}>
+              {`פנוי ב־${dateLabel}`}
+            </Text>
+          </PressableScale>
+        ) : null}
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel="סינון"
+          onPress={() => {
+            setDraft(filters);
+            setSheet(true);
+          }}
+          style={[styles.tool, activeCount > 0 && styles.toolOn]}>
+          <Feather name="sliders" size={15} color={activeCount ? colors.inverse : colors.ink} />
+          <Text variant="bodySmall" color={activeCount ? colors.inverse : colors.ink} style={{ fontFamily: fonts.bodyMedium }}>
+            {activeCount ? `סינון · ${activeCount}` : 'סינון'}
+          </Text>
+        </PressableScale>
+      </View>
       <View style={styles.metaRow}>
         <Text variant="caption" color={colors.inkSoft} style={{ flex: 1 }}>
-          {total != null ? `${total} ספקים${filters.date ? ` · זמינות ל־${formatDay(filters.date)}` : ''}` : ' '}
+          {total != null ? `${total} ספקים` : ' '}
         </Text>
         <Pressable
           onPress={() => {
@@ -158,7 +192,7 @@ export default function Explore() {
           }}
           accessibilityRole="button"
           style={styles.sort}>
-          <Feather name="bar-chart" size={14} color={colors.ink} />
+          <Feather name="bar-chart-2" size={14} color={colors.gold} />
           <Text variant="caption">{SORTS.find((s) => s.key === filters.sort)!.label}</Text>
         </Pressable>
       </View>
@@ -174,31 +208,24 @@ export default function Explore() {
         keyExtractor={(v) => v.id}
         ListHeaderComponent={header}
         contentContainerStyle={styles.list}
-        columnWrapperStyle={columns > 1 ? { gap: space.lg } : undefined}
-        ItemSeparatorComponent={() => <View style={{ height: space.xl }} />}
-        renderItem={({ item }) => (
-          <View style={{ flex: 1 / columns }}>
-            <VendorCard vendor={item} />
-          </View>
+        columnWrapperStyle={{ gap: space.md }}
+        ItemSeparatorComponent={() => <View style={{ height: space.lg }} />}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item, index }) => (
+          <Reveal index={index % 6} style={{ flex: 1 / columns }}>
+            <VendorCard vendor={item} variant="grid" />
+          </Reveal>
         )}
         onEndReachedThreshold={0.5}
         onEndReached={() => q.hasNextPage && !q.isFetchingNextPage && q.fetchNextPage()}
         ListEmptyComponent={
           q.isPending ? (
-            <ActivityIndicator color={colors.ink} style={{ marginTop: space.xl }} />
+            <ActivityIndicator color={colors.accent} style={{ marginTop: space.xl }} />
           ) : (
-            <View style={{ alignItems: 'center', gap: space.sm, paddingVertical: space.xxl }}>
-              <Feather name="search" size={26} color={colors.inkMuted} />
-              <Text variant="h2" align="center">
-                לא מצאנו ספקים
-              </Text>
-              <Text variant="bodySmall" color={colors.inkSoft} align="center">
-                נסו להרחיב את הסינון או לחפש במילים אחרות.
-              </Text>
-            </View>
+            <EmptyState icon="search" title="לא מצאנו ספקים" body="נסו להרחיב את הסינון או לחפש במילים אחרות." />
           )
         }
-        ListFooterComponent={q.isFetchingNextPage ? <ActivityIndicator color={colors.ink} style={{ margin: space.lg }} /> : undefined}
+        ListFooterComponent={q.isFetchingNextPage ? <ActivityIndicator color={colors.accent} style={{ margin: space.lg }} /> : undefined}
       />
 
       <Sheet
@@ -211,7 +238,7 @@ export default function Explore() {
               variant="ghost"
               label="ניקוי"
               style={{ flex: 1 }}
-              onPress={() => setDraft({ ...draft, region: undefined, date: null, priceMin: '', priceMax: '', onlyAvailable: false })}
+              onPress={() => setDraft({ ...draft, region: undefined, priceMin: '', priceMax: '', onlyAvailable: false })}
             />
             <Button
               label="הצגת תוצאות"
@@ -268,32 +295,32 @@ export default function Explore() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   list: { padding: space.lg, paddingBottom: space.xxxl, width: '100%', maxWidth: 1100, alignSelf: 'center' },
-  searchRow: { flexDirection: 'row', gap: space.sm },
   search: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
     paddingHorizontal: space.md,
-    height: 50,
-    borderWidth: hairline,
-    borderColor: colors.stoneDeep,
+    height: 54,
+    backgroundColor: colors.surface,
     borderRadius: radius.pill,
+    borderWidth: hairline,
+    borderColor: colors.line,
+    ...shadow.sm,
   },
   searchInput: { flex: 1, fontFamily: fonts.body, fontSize: 16, color: colors.ink, height: '100%' },
-  filterBtn: {
+  toolRow: { flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' },
+  tool: {
     flexDirection: 'row',
-    gap: 4,
     alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 50,
-    height: 50,
-    paddingHorizontal: space.sm,
-    borderRadius: 25,
+    gap: 6,
+    height: 40,
+    paddingHorizontal: 14,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
     borderWidth: hairline,
-    borderColor: colors.stoneDeep,
+    borderColor: colors.line,
   },
-  filterBtnOn: { backgroundColor: colors.ink, borderColor: colors.ink },
+  toolOn: { backgroundColor: colors.accent, borderColor: colors.accent },
   metaRow: { flexDirection: 'row', alignItems: 'center' },
   sort: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: space.xs },
 });

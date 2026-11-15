@@ -21,12 +21,15 @@ import { Loading, Screen } from '@/components/Screen';
 import { Sheet } from '@/components/Sheet';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
-import { Card, Chip, ChipGroup, IconButton } from '@/components/ui';
+import { PressableScale, Reveal } from '@/components/motion';
+import { ProgressBar } from '@/components/Progress';
+import { Segmented } from '@/components/Segmented';
+import { Chip, ChipGroup, IconButton } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
 import { formatDayShort } from '@/lib/dates';
 import { keys, useApiMutation, useApiQuery } from '@/lib/query';
-import { colors, hairline, space } from '@/theme/tokens';
+import { colors, fonts, hairline, radius, shadow, space } from '@/theme/tokens';
 
 type ItemDraft = { id?: string; category: string; title: string; vendorName: string; planned: string; actual: string; notes: string };
 type PayDraft = { id?: string; budgetItemId: string | null; title: string; amount: string; dueDate: string | null; paid: boolean };
@@ -91,41 +94,41 @@ export default function Budget() {
 
   return (
     <Screen
-      title="תקציב ותשלומים"
+      title="תקציב"
       back
       backTo="/couple/planning"
       right={<IconButton icon="plus" label="הוספה" onPress={() => (tab === 'budget' ? editItem() : editPay())} />}>
-      <Card tone="muted">
-        <View style={styles.sumRow}>
-          <Sum label="תקציב כולל" value={total != null ? formatAgorot(total) : '—'} />
-          <Sum label="התחייבויות" value={formatAgorot(b.committedAgorot)} danger={over} />
-          <Sum label="שולם" value={formatAgorot(b.paidAgorot)} />
-          <Sum label="יתרה לתשלום" value={formatAgorot(b.committedAgorot - b.paidAgorot)} />
-        </View>
+      <Reveal style={styles.hero}>
+        <Text variant="eyebrow" color={colors.goldLight}>
+          תקציב כולל
+        </Text>
+        <Text color={colors.inverse} style={styles.heroNum}>
+          {total != null ? formatAgorot(total) : '—'}
+        </Text>
         {total ? (
-          <View style={styles.bar}>
-            <View style={[styles.barPart, { width: `${Math.min(100, (b.paidAgorot / total) * 100)}%`, backgroundColor: colors.ink }]} />
-            <View
-              style={[
-                styles.barPart,
-                { width: `${Math.max(0, Math.min(100, ((b.committedAgorot - b.paidAgorot) / total) * 100))}%`, backgroundColor: colors.stoneDeep },
-              ]}
-            />
-          </View>
+          <ProgressBar value={b.committedAgorot / total} color={over ? '#E39A9A' : colors.goldLight} track="rgba(255,255,255,0.18)" height={5} />
         ) : null}
-        {over ? (
-          <Text variant="caption" color={colors.danger}>{`חריגה של ${formatAgorot(b.committedAgorot - total!)} מהתקציב`}</Text>
-        ) : total ? (
-          <Text variant="caption" color={colors.inkSoft}>{`נותרו ${formatAgorot(total - b.committedAgorot)} לחלוקה`}</Text>
-        ) : (
-          <Text variant="caption" color={colors.inkSoft}>הגדירו תקציב כולל בפרופיל כדי לראות יתרות וחריגות.</Text>
-        )}
-      </Card>
+        <View style={styles.sumRow}>
+          <Sum label="הוצאנו" value={formatAgorot(b.committedAgorot)} danger={over} />
+          <Sum label="שולם" value={formatAgorot(b.paidAgorot)} />
+          <Sum label={over ? 'חריגה' : 'נותר בתקציב'} value={total != null ? formatAgorot(Math.abs(total - b.committedAgorot)) : '—'} danger={over} />
+          <Sum label="נותר לתשלום" value={formatAgorot(b.committedAgorot - b.paidAgorot)} />
+        </View>
+        {!total ? (
+          <Text variant="caption" color="rgba(255,255,255,0.7)">
+            הגדירו תקציב כולל בפרטי החתונה כדי לראות יתרות וחריגות.
+          </Text>
+        ) : null}
+      </Reveal>
 
-      <ChipGroup>
-        <Chip label="תקציב" selected={tab === 'budget'} onPress={() => setTab('budget')} />
-        <Chip label="תשלומים" count={b.payments.filter((p) => !p.paidAt).length} selected={tab === 'payments'} onPress={() => setTab('payments')} />
-      </ChipGroup>
+      <Segmented
+        options={[
+          { key: 'budget', label: 'לפי קטגוריה' },
+          { key: 'payments', label: `תשלומים · ${b.payments.filter((p) => !p.paidAt).length}` },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
 
       {tab === 'budget' ? (
         <View>
@@ -135,33 +138,34 @@ export default function Budget() {
               {total ? <Button variant="outline" label="חלוקה מומלצת לפי קטגוריות" loading={m.isPending} onPress={splitBySuggestion} /> : null}
             </View>
           ) : null}
-          {b.items.map((i) => {
-            const base = i.actualAgorot ?? i.plannedAgorot ?? 0;
-            const itemOver = i.plannedAgorot != null && i.actualAgorot != null && i.actualAgorot > i.plannedAgorot;
+          {b.items.map((i, n) => {
+            const spent = i.actualAgorot ?? 0;
+            const planned = i.plannedAgorot ?? 0;
+            const itemOver = planned > 0 && spent > planned;
+            const left = Math.max(0, spent - i.paidAgorot);
             return (
-              <Pressable key={i.id} onPress={() => editItem(i)} style={styles.row}>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text variant="caption" color={colors.inkMuted}>
-                    {budgetCategoryLabel(i.category)}
+              <Reveal key={i.id} index={n}>
+                <PressableScale scaleTo={0.98} onPress={() => editItem(i)} style={styles.itemCard}>
+                  <View style={styles.itemTop}>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text variant="h3">{i.title}</Text>
+                      <Text variant="caption" color={colors.inkMuted}>
+                        {[budgetCategoryLabel(i.category), i.vendorName].filter(Boolean).join(' · ')}
+                      </Text>
+                    </View>
+                    <Text style={[styles.itemNum, itemOver && { color: colors.danger }]}>{formatAgorot(spent)}</Text>
+                  </View>
+                  <ProgressBar value={planned ? spent / planned : spent ? 1 : 0} color={itemOver ? colors.danger : colors.accent} />
+                  <Text variant="caption" color={colors.inkSoft}>
+                    {`תקציב ${formatAgorot(planned)} · שולם ${formatAgorot(i.paidAgorot)} · נותר ${formatAgorot(left)}`}
                   </Text>
-                  <Text variant="body">{i.title}</Text>
-                  {i.vendorName ? <Text variant="caption" color={colors.inkSoft}>{i.vendorName}</Text> : null}
-                </View>
-                <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                  <Text variant="body" color={itemOver ? colors.danger : colors.ink}>
-                    {formatAgorot(base)}
-                  </Text>
-                  <Text variant="caption" color={colors.inkMuted}>
-                    {i.actualAgorot != null ? `תכנון ${formatAgorot(i.plannedAgorot ?? 0)}` : 'מתוכנן'}
-                  </Text>
-                  {i.paidAgorot ? <Text variant="caption" color={colors.inkSoft}>{`שולם ${formatAgorot(i.paidAgorot)}`}</Text> : null}
-                </View>
-              </Pressable>
+                </PressableScale>
+              </Reveal>
             );
           })}
         </View>
       ) : (
-        <View>
+        <View style={styles.listCard}>
           {b.payments.length === 0 ? <Text color={colors.inkSoft}>הוסיפו תשלומים עם תאריך יעד כדי לקבל תזכורת.</Text> : null}
           {b.payments.map((p) => {
             const late = !p.paidAt && p.dueDate != null && p.dueDate < today;
@@ -316,17 +320,32 @@ export default function Budget() {
 function Sum({ label, value, danger }: { label: string; value: string; danger?: boolean }) {
   return (
     <View style={{ flexGrow: 1, flexBasis: '45%', gap: 2 }}>
-      <Text variant="caption" color={colors.inkSoft}>{label}</Text>
-      <Text variant="h2" color={danger ? colors.danger : colors.ink}>{value}</Text>
+      <Text variant="caption" color="rgba(255,255,255,0.65)">
+        {label}
+      </Text>
+      <Text color={danger ? '#F0B4B4' : colors.inverse} style={{ fontFamily: fonts.display, fontSize: 20, lineHeight: 28 }}>
+        {value}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  hero: {
+    gap: space.md,
+    padding: space.lg,
+    borderRadius: radius.lg,
+    backgroundColor: colors.night,
+    experimental_backgroundImage: 'linear-gradient(135deg, #3A1A22 0%, #24120F 75%)',
+    ...shadow.md,
+  } as object,
+  heroNum: { fontFamily: fonts.display, fontSize: 40, lineHeight: 48, marginTop: -6 },
   sumRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
-  bar: { height: 4, backgroundColor: colors.line, flexDirection: 'row', overflow: 'hidden' },
-  barPart: { height: 4 },
+  itemCard: { gap: 10, padding: space.md, marginBottom: space.sm, borderRadius: radius.md, backgroundColor: colors.surface, ...shadow.sm },
+  itemTop: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
+  itemNum: { fontFamily: fonts.display, fontSize: 20, lineHeight: 26, color: colors.ink },
+  listCard: { paddingHorizontal: space.md, borderRadius: radius.lg, backgroundColor: colors.surface, ...shadow.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md, borderBottomWidth: hairline, borderBottomColor: colors.line },
-  check: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: colors.stoneDeep, alignItems: 'center', justifyContent: 'center' },
-  checkOn: { backgroundColor: colors.ink, borderColor: colors.ink },
+  check: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: colors.stoneDeep, alignItems: 'center', justifyContent: 'center' },
+  checkOn: { backgroundColor: colors.success, borderColor: colors.success },
 });

@@ -1,21 +1,32 @@
 import Feather from '@expo/vector-icons/Feather';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, type Href } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { formatAgorot, VENDOR_CATEGORIES, type CoupleHomeDTO } from '@soon/shared';
 
 import { Button } from '@/components/Button';
+import { CoverPicker, DEFAULT_COVER } from '@/components/CoverPicker';
+import { PressableScale, Reveal, useCountUp } from '@/components/motion';
+import { ProgressBar } from '@/components/Progress';
 import { Loading, Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { VendorCard } from '@/components/VendorCard';
-import { SectionTitle, type IconName } from '@/components/ui';
-import { formatDateTime, formatDay } from '@/lib/dates';
+import { SectionTitle } from '@/components/ui';
+import { formatDateTime, formatDayDots } from '@/lib/dates';
 import { keys, useApiQuery } from '@/lib/query';
-import { colors, hairline, radius, space } from '@/theme/tokens';
+import { colors, fonts, radius, shadow, space } from '@/theme/tokens';
 
-/** Couple home (spec §4): countdown, quick cards, big search, nudges, personal feed. */
+/** Couple home (spec §4): photo hero with countdown, progress tiles, nudges, personal feed. */
 export default function CoupleHome() {
+  const insets = useSafeAreaInsets();
   const q = useApiQuery<CoupleHomeDTO>(keys.home, '/api/couple/home');
+  const [coverOpen, setCoverOpen] = useState(false);
+  const days = useCountUp(q.data?.daysToGo ?? 0);
+
   if (q.isPending) return <Loading />;
   if (q.isError) {
     return (
@@ -27,137 +38,229 @@ export default function CoupleHome() {
   const h = q.data;
   const w = h.wedding;
   const closedSet = new Set(w.categories.filter((c) => c.status === 'closed').map((c) => c.slug));
+  const vendorsTotal = h.vendors.closed + h.vendors.needed;
+  const tasksTotal = h.tasks.open + h.tasks.done;
+  const budgetTotal = h.budget.totalAgorot ?? 0;
+  const availableOnDate = h.recommended.filter((v) => v.availability !== 'booked');
 
   return (
-    <Screen refreshing={q.isRefetching} onRefresh={() => q.refetch()} contentStyle={{ gap: space.xl }}>
-      {/* Countdown hero */}
-      <View style={styles.hero}>
-        <Text variant="caption" color={colors.stoneDeep} align="center" style={{ letterSpacing: 4 }}>
-          SOON
-        </Text>
-        {h.daysToGo != null && h.daysToGo >= 0 ? (
-          <>
-            <Text align="center" color={colors.inverse} style={styles.count}>
-              {h.daysToGo}
+    <View style={styles.root}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={() => void q.refetch()} tintColor={colors.accent} />}>
+        {/* ---- Photo hero ---- */}
+        <View style={styles.hero}>
+          <Image source={w.coverImageUrl ?? DEFAULT_COVER} style={StyleSheet.absoluteFill} contentFit="cover" transition={500} />
+          <LinearGradient
+            colors={['rgba(36,18,15,0.45)', 'rgba(36,18,15,0)', 'rgba(36,18,15,0.15)', 'rgba(36,18,15,0.82)']}
+            locations={[0, 0.25, 0.55, 1]}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={[styles.heroTop, { paddingTop: insets.top + space.md }]}>
+            <Text color={colors.inverse} style={styles.logo}>
+              SOON
             </Text>
-            <Text variant="label" align="center" color={colors.stone} style={{ letterSpacing: 3 }}>
-              {h.daysToGo === 1 ? 'יום לחתונה' : 'ימים לחתונה'}
-            </Text>
-          </>
-        ) : null}
-        <Text variant="h1" align="center" color={colors.inverse} style={{ marginTop: space.md }}>
-          {`${w.partner1Name} & ${w.partner2Name}`}
-        </Text>
-        <Text variant="bodySmall" align="center" color={colors.stone}>
-          {[w.weddingDate ? formatDay(w.weddingDate) : 'התאריך עוד לא נקבע', w.venueName].filter(Boolean).join(' · ')}
-        </Text>
-      </View>
+            <View style={styles.heroActions}>
+              <GlassButton icon="message-circle" label="הודעות" onPress={() => router.push('/messages' as Href)} />
+              <GlassButton icon="camera" label="תמונת רקע" onPress={() => setCoverOpen(true)} />
+            </View>
+          </View>
 
-      {/* Quick cards (spec §4: Budget, Vendors, Tasks, Next Event) */}
-      <View style={styles.tiles}>
-        <Tile
-          icon="credit-card"
-          label="תקציב"
-          value={h.budget.totalAgorot ? formatAgorot(h.budget.totalAgorot - h.budget.committedAgorot) : '—'}
-          hint={h.budget.totalAgorot ? 'נותר לחלוקה' : 'הגדירו תקציב'}
-          href="/couple/planning/budget"
-        />
-        <Tile
-          icon="users"
-          label="ספקים"
-          value={`${h.vendors.closed}/${h.vendors.closed + h.vendors.needed}`}
-          hint="קטגוריות סגורות"
-          href="/couple/planning/vendors"
-        />
-        <Tile
-          icon="check-square"
-          label="משימות"
-          value={String(h.tasks.open)}
-          hint={h.tasks.next ? h.tasks.next.title : 'הכל בוצע'}
-          href="/couple/planning/checklist"
-        />
-        <Tile
-          icon="calendar"
-          label="האירוע הבא"
-          value={h.nextEvent ? formatDateTime(h.nextEvent.startsAt) : '—'}
-          hint={h.nextEvent?.title ?? 'אין אירועים קרובים'}
-          href="/couple/planning/calendar"
-        />
-      </View>
-
-      {/* Big search */}
-      <Pressable accessibilityRole="search" onPress={() => router.push('/couple/explore')} style={styles.search}>
-        <Feather name="search" size={20} color={colors.inkSoft} />
-        <Text variant="body" color={colors.inkMuted}>
-          מה אתם מחפשים?
-        </Text>
-      </Pressable>
-
-      {h.insights.length ? (
-        <View style={{ gap: space.sm }}>
-          {h.insights.map((i) => (
-            <Pressable
-              key={i.key}
-              disabled={!i.href}
-              onPress={() => i.href && router.push(i.href as Href)}
-              style={({ pressed }) => [styles.insight, pressed && { opacity: 0.7 }]}>
-              <View style={styles.insightDot} />
-              <Text variant="bodySmall" style={{ flex: 1 }}>
-                {i.text}
+          <View style={styles.heroText}>
+            {h.daysToGo != null && h.daysToGo >= 0 ? (
+              <Reveal>
+                <View style={styles.countPill}>
+                  <Text color={colors.inverse} style={styles.countNum}>
+                    {days}
+                  </Text>
+                  <Text variant="eyebrow" color={colors.goldLight}>
+                    {h.daysToGo === 1 ? 'יום לחתונה' : 'ימים לחתונה'}
+                  </Text>
+                </View>
+              </Reveal>
+            ) : null}
+            <Reveal index={1}>
+              <Text align="center" color="rgba(255,255,255,0.85)" style={styles.of}>
+                החתונה של
               </Text>
-              {i.href ? <Feather name="chevron-left" size={16} color={colors.inkMuted} /> : null}
-            </Pressable>
-          ))}
+              <Text align="center" color={colors.inverse} style={styles.names}>
+                {`${w.partner1Name} ו${w.partner2Name}`}
+              </Text>
+            </Reveal>
+            <Reveal index={2}>
+              <Text align="center" color={colors.goldLight} style={styles.date}>
+                {w.weddingDate ? formatDayDots(w.weddingDate) : 'התאריך עוד לא נקבע'}
+                {w.venueName ? `  ·  ${w.venueName}` : ''}
+              </Text>
+            </Reveal>
+          </View>
         </View>
-      ) : null}
 
-      {/* Visual categories */}
-      <View style={{ gap: space.md }}>
-        <SectionTitle>קטגוריות</SectionTitle>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
-          {VENDOR_CATEGORIES.filter((c) => !closedSet.has(c.slug)).map((c) => (
-            <Pressable
-              key={c.slug}
-              onPress={() => router.push({ pathname: '/couple/explore', params: { category: c.slug } })}
-              style={({ pressed }) => [styles.cat, pressed && { backgroundColor: colors.stone }]}>
-              <Text variant="bodySmall">{c.he}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
+        <View style={styles.body}>
+          {/* ---- Progress tiles (spec §4: Budget, Vendors, Tasks, Next Event) ---- */}
+          <Reveal index={3} style={styles.tilesCard}>
+            <View style={styles.tilesRow}>
+              <Tile
+                label="תקציב"
+                value={formatAgorot(h.budget.committedAgorot)}
+                of={budgetTotal ? `מתוך ${formatAgorot(budgetTotal)}` : 'הגדירו תקציב'}
+                progress={budgetTotal ? h.budget.committedAgorot / budgetTotal : 0}
+                href="/couple/planning/budget"
+              />
+              <View style={styles.vRule} />
+              <Tile
+                label="ספקים"
+                value={String(h.vendors.closed)}
+                of={`מתוך ${vendorsTotal} נסגרו`}
+                progress={vendorsTotal ? h.vendors.closed / vendorsTotal : 0}
+                href="/couple/planning/vendors"
+              />
+            </View>
+            <View style={styles.hRule} />
+            <View style={styles.tilesRow}>
+              <Tile
+                label="משימות"
+                value={String(h.tasks.done)}
+                of={`מתוך ${tasksTotal} הושלמו`}
+                progress={tasksTotal ? h.tasks.done / tasksTotal : 0}
+                href="/couple/planning/checklist"
+              />
+              <View style={styles.vRule} />
+              <Tile
+                label="האירוע הבא"
+                title={h.nextEvent?.title ?? (h.tasks.next ? `תזכורת: ${h.tasks.next.title}` : 'אין אירועים קרובים')}
+                of={h.nextEvent ? formatDateTime(h.nextEvent.startsAt) : ''}
+                href="/couple/planning/calendar"
+              />
+            </View>
+          </Reveal>
 
-      {h.recommended.length ? (
-        <Carousel title="מומלצים בשבילכם" items={h.recommended} />
-      ) : null}
-      {h.fresh.length ? <Carousel title="חדשים ב־SOON" items={h.fresh} /> : null}
-    </Screen>
+          {/* ---- Nudges ---- */}
+          {h.insights.length ? (
+            <View style={{ gap: space.sm }}>
+              {h.insights.slice(0, 3).map((i, n) => (
+                <Reveal key={i.key} index={n + 4}>
+                  <PressableScale
+                    disabled={!i.href}
+                    onPress={() => i.href && router.push(i.href as Href)}
+                    style={styles.insight}>
+                    <View style={styles.insightIcon}>
+                      <Feather name="star" size={14} color={colors.gold} />
+                    </View>
+                    <Text variant="bodySmall" style={{ flex: 1 }}>
+                      {i.text}
+                    </Text>
+                    {i.href ? <Feather name="chevron-left" size={16} color={colors.stoneDeep} /> : null}
+                  </PressableScale>
+                </Reveal>
+              ))}
+            </View>
+          ) : null}
+
+          {availableOnDate.length ? (
+            <Carousel eyebrow="מומלצים עבורכם" title="פנויים בתאריך שלכם" items={availableOnDate} />
+          ) : null}
+
+          {/* ---- Categories still open ---- */}
+          <View style={{ gap: space.md }}>
+            <SectionTitle eyebrow="מה עוד חסר">קטגוריות לסגירה</SectionTitle>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+              {VENDOR_CATEGORIES.filter((c) => !closedSet.has(c.slug)).map((c) => (
+                <PressableScale
+                  key={c.slug}
+                  scaleTo={0.94}
+                  onPress={() => router.push({ pathname: '/couple/explore', params: { category: c.slug } })}
+                  style={styles.cat}>
+                  <Text variant="bodySmall" style={{ fontFamily: fonts.bodyMedium }}>
+                    {c.he}
+                  </Text>
+                </PressableScale>
+              ))}
+            </ScrollView>
+          </View>
+
+          {h.fresh.length ? <Carousel eyebrow="הצטרפו לאחרונה" title="חדשים ב־SOON" items={h.fresh} /> : null}
+        </View>
+      </ScrollView>
+
+      <CoverPicker visible={coverOpen} onClose={() => setCoverOpen(false)} current={w.coverImageUrl} />
+    </View>
   );
 }
 
-function Tile({ icon, label, value, hint, href }: { icon: IconName; label: string; value: string; hint: string; href: Href }) {
+function GlassButton({ icon, label, onPress }: { icon: 'camera' | 'message-circle'; label: string; onPress: () => void }) {
   return (
-    <Pressable onPress={() => router.push(href)} style={({ pressed }) => [styles.tile, pressed && { borderColor: colors.ink }]}>
-      <View style={styles.tileHead}>
-        <Feather name={icon} size={16} color={colors.inkSoft} />
-        <Text variant="caption" color={colors.inkSoft}>
-          {label}
-        </Text>
-      </View>
-      <Text variant="h2" numberOfLines={1}>
-        {value}
-      </Text>
-      <Text variant="caption" color={colors.inkMuted} numberOfLines={1}>
-        {hint}
-      </Text>
-    </Pressable>
+    <PressableScale accessibilityRole="button" accessibilityLabel={label} scaleTo={0.9} onPress={onPress} style={styles.glass}>
+      <Feather name={icon} size={18} color={colors.ink} />
+    </PressableScale>
   );
 }
 
-function Carousel({ title, items }: { title: string; items: CoupleHomeDTO['recommended'] }) {
+function Tile({
+  label,
+  value,
+  of,
+  title,
+  progress,
+  href,
+}: {
+  label: string;
+  value?: string;
+  of: string;
+  title?: string;
+  progress?: number;
+  href: Href;
+}) {
+  return (
+    <PressableScale scaleTo={0.97} onPress={() => router.push(href)} style={styles.tile}>
+      <Text variant="eyebrow" color={colors.gold} style={{ letterSpacing: 1.5 }}>
+        {label}
+      </Text>
+      {value != null ? (
+        <View style={{ minHeight: 50 }}>
+          <Text style={styles.tileValue} numberOfLines={1} adjustsFontSizeToFit>
+            {value}
+          </Text>
+          <Text variant="caption" color={colors.inkMuted} numberOfLines={1}>
+            {of}
+          </Text>
+        </View>
+      ) : (
+        <View style={{ gap: 2, minHeight: 44, justifyContent: 'center' }}>
+          <Text variant="bodySmall" numberOfLines={2} style={{ fontFamily: fonts.bodyMedium }}>
+            {title}
+          </Text>
+          {of ? (
+            <Text variant="caption" color={colors.inkMuted}>
+              {of}
+            </Text>
+          ) : null}
+        </View>
+      )}
+      {progress != null ? <ProgressBar value={progress} delay={400} /> : null}
+    </PressableScale>
+  );
+}
+
+function Carousel({ eyebrow, title, items }: { eyebrow: string; title: string; items: CoupleHomeDTO['recommended'] }) {
   return (
     <View style={{ gap: space.md }}>
-      <SectionTitle>{title}</SectionTitle>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.md }}>
+      <SectionTitle
+        eyebrow={eyebrow}
+        action={
+          <PressableScale onPress={() => router.push('/couple/explore')} style={{ paddingVertical: 4 }}>
+            <Text variant="caption" color={colors.accent} style={{ fontFamily: fonts.bodyMedium }}>
+              לכל הספקים
+            </Text>
+          </PressableScale>
+        }>
+        {title}
+      </SectionTitle>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginHorizontal: -space.lg }}
+        contentContainerStyle={{ gap: space.md, paddingHorizontal: space.lg, paddingBottom: space.sm }}>
         {items.map((v) => (
           <VendorCard key={v.id} vendor={v} variant="compact" />
         ))}
@@ -167,22 +270,67 @@ function Carousel({ title, items }: { title: string; items: CoupleHomeDTO['recom
 }
 
 const styles = StyleSheet.create({
-  hero: { backgroundColor: colors.night, paddingVertical: space.xxl, paddingHorizontal: space.lg, gap: 2, marginTop: space.sm },
-  count: { fontFamily: 'FrankRuhlLibre_400Regular', fontSize: 72, lineHeight: 84 },
-  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  tile: { flexGrow: 1, flexBasis: '45%', borderWidth: hairline, borderColor: colors.line, padding: space.md, gap: 4 },
-  tileHead: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  search: {
+  root: { flex: 1, backgroundColor: colors.background },
+  hero: { height: 500, overflow: 'hidden', backgroundColor: colors.night },
+  heroTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    paddingHorizontal: space.md,
-    height: 56,
-    borderWidth: hairline,
-    borderColor: colors.stoneDeep,
-    borderRadius: radius.pill,
+    justifyContent: 'space-between',
+    paddingHorizontal: space.lg,
   },
-  insight: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: colors.offWhite, padding: space.md },
-  insightDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.ink },
-  cat: { paddingHorizontal: space.md, paddingVertical: space.md, backgroundColor: colors.offWhite, borderRadius: radius.sm },
+  logo: { fontFamily: fonts.displayLight, fontSize: 24, letterSpacing: 8, writingDirection: 'ltr' },
+  heroActions: { flexDirection: 'row', gap: space.sm },
+  glass: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow.sm,
+  },
+  heroText: { position: 'absolute', left: 0, right: 0, bottom: 64, alignItems: 'center', paddingHorizontal: space.lg, gap: 4 },
+  countPill: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+    alignSelf: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(217,190,140,0.55)',
+    backgroundColor: 'rgba(36,18,15,0.25)',
+    marginBottom: space.sm,
+  },
+  countNum: { fontFamily: fonts.display, fontSize: 22, lineHeight: 30 },
+  of: { fontFamily: fonts.displayLight, fontSize: 18, lineHeight: 24, fontStyle: 'italic' },
+  names: { fontFamily: fonts.display, fontSize: 44, lineHeight: 54 },
+  date: { fontFamily: fonts.bodyMedium, fontSize: 13, letterSpacing: 3, marginTop: 2 },
+  body: { paddingHorizontal: space.lg, paddingBottom: space.xxxl, gap: space.xl, marginTop: -40, maxWidth: 720, width: '100%', alignSelf: 'center' },
+  tilesCard: { backgroundColor: colors.surface, borderRadius: radius.lg, ...shadow.md, overflow: 'hidden' },
+  tilesRow: { flexDirection: 'row' },
+  vRule: { width: 1, backgroundColor: colors.line, marginVertical: space.md },
+  hRule: { height: 1, backgroundColor: colors.line, marginHorizontal: space.md },
+  tile: { flex: 1, padding: space.md, gap: 10 },
+  tileValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, minHeight: 34 },
+  tileValue: { fontFamily: fonts.display, fontSize: 24, lineHeight: 32, color: colors.ink, flexShrink: 0 },
+  insight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    backgroundColor: colors.surface,
+    padding: space.md,
+    borderRadius: radius.md,
+    ...shadow.sm,
+  },
+  insightIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.goldSoft, alignItems: 'center', justifyContent: 'center' },
+  cat: {
+    paddingHorizontal: space.md,
+    paddingVertical: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
 });

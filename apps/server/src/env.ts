@@ -5,6 +5,11 @@ const optional = z
   .optional()
   .transform((v) => (v ? v : undefined));
 
+const flag = z
+  .enum(['true', 'false'])
+  .default('false')
+  .transform((v) => v === 'true');
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().default(4000),
@@ -21,6 +26,8 @@ const envSchema = z.object({
         .map((o) => o.trim())
         .filter(Boolean),
     ),
+  /** Demo server: enables POST /api/demo/reset (demo accounts only). */
+  DEMO_TOOLS: flag,
   /** Comma-separated emails that get the admin role. */
   ADMIN_EMAILS: z
     .string()

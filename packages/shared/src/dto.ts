@@ -323,3 +323,22 @@ export type VendorDashboardDTO = {
   followUps: LeadListItem[];
   viewsSeries: { day: string; views: number }[];
 };
+
+// ---------- inspiration boards (spec §6) ----------
+export type BoardItemDTO = {
+  id: string;
+  imageUrl: string;
+  vendor: { id: string; slug: string; businessName: string } | null;
+  note: string | null;
+  createdAt: string;
+};
+
+export type BoardDTO = {
+  id: string;
+  title: string;
+  /** Latest item's picture, else the board's own cover. */
+  coverUrl: string | null;
+  itemCount: number;
+};
+
+export type BoardDetailDTO = BoardDTO & { items: BoardItemDTO[] };

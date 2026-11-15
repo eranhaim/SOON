@@ -101,6 +101,7 @@ export async function weddingRoutes(app: FastifyInstance) {
     if (body.region !== undefined) set.region = body.region;
     if (body.venueName !== undefined) set.venueName = body.venueName || null;
     if (body.budgetTotal !== undefined) set.budgetTotalAgorot = body.budgetTotal;
+    if (body.coverImageUrl !== undefined) set.coverImageUrl = body.coverImageUrl;
 
     const updated = await db.transaction(async (tx) => {
       const [w] = Object.keys(set).length

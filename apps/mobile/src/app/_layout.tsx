@@ -1,8 +1,10 @@
 import {
+  FrankRuhlLibre_300Light,
   FrankRuhlLibre_400Regular,
   FrankRuhlLibre_500Medium,
+  FrankRuhlLibre_700Bold,
 } from '@expo-google-fonts/frank-ruhl-libre';
-import { Heebo_300Light, Heebo_400Regular, Heebo_500Medium } from '@expo-google-fonts/heebo';
+import { Heebo_300Light, Heebo_400Regular, Heebo_500Medium, Heebo_700Bold } from '@expo-google-fonts/heebo';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -16,11 +18,14 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
+    FrankRuhlLibre_300Light,
     FrankRuhlLibre_400Regular,
     FrankRuhlLibre_500Medium,
+    FrankRuhlLibre_700Bold,
     Heebo_300Light,
     Heebo_400Regular,
     Heebo_500Medium,
+    Heebo_700Bold,
   });
   const ready = fontsLoaded || !!fontError;
 

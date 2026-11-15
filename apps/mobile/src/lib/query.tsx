@@ -12,24 +12,23 @@ import {
   type QueryKey,
   type UseQueryOptions,
 } from '@tanstack/react-query';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 import { api, ApiError } from './api';
 
+/** One client for the app (exported so sign-out / demo tools can clear the cache). */
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      // 4xx won't fix itself on retry.
+      retry: (count, err) => !(err instanceof ApiError && err.status < 500) && count < 2,
+    },
+  },
+});
+
 export function QueryProvider({ children }: { children: ReactNode }) {
-  const [client] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 30_000,
-            // 4xx won't fix itself on retry.
-            retry: (count, err) => !(err instanceof ApiError && err.status < 500) && count < 2,
-          },
-        },
-      }),
-  );
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
 /** GET `path`, cached under `key`. Pass `path: null` to wait (dependent queries). */
@@ -88,4 +87,6 @@ export const keys = {
   dashboard: ['vendor-dashboard'] as const,
   reviews: (slug: string) => ['reviews', slug] as const,
   unread: ['unread'] as const,
+  boards: ['boards'] as const,
+  board: (id: string) => ['boards', id] as const,
 };

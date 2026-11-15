@@ -21,6 +21,12 @@ export const formatDay = (iso: string | null | undefined) => (iso ? civilFmt.for
 /** A civil date → "יום ה׳, 17 ביוני". */
 export const formatDayShort = (iso: string | null | undefined) => (iso ? civilShortFmt.format(civil(iso)) : '');
 export const formatMonth = (iso: string) => monthFmt.format(civil(iso));
+/** A civil date → "17.06.2027". */
+export const formatDayDots = (iso: string | null | undefined) =>
+  iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '';
+/** Today → "יום ראשון, 15 בנובמבר 2026". */
+export const formatToday = (date = new Date()) =>
+  new Intl.DateTimeFormat('he-IL', { ...tz, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(date);
 
 /** Israeli local date + "HH:MM" → ISO instant with the right offset (handles DST). */
 export function toInstant(date: string, time: string): string {

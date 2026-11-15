@@ -1,53 +1,69 @@
-import { ActivityIndicator, Pressable, StyleSheet, type PressableProps, type ViewStyle } from 'react-native';
+import Feather from '@expo/vector-icons/Feather';
+import { ActivityIndicator, StyleSheet, View, type PressableProps, type ViewStyle } from 'react-native';
 
-import { colors, hairline, radius, space } from '@/theme/tokens';
+import { colors, hairline, radius, shadow, space } from '@/theme/tokens';
 
+import { PressableScale } from './motion';
 import { Text } from './Text';
+import type { IconName } from './ui';
+
+type Variant = 'primary' | 'outline' | 'ghost' | 'soft' | 'light';
 
 type Props = Omit<PressableProps, 'style' | 'children'> & {
   label: string;
-  variant?: 'primary' | 'outline' | 'ghost';
+  variant?: Variant;
   loading?: boolean;
+  icon?: IconName;
+  size?: 'md' | 'sm';
   style?: ViewStyle;
 };
 
-export function Button({ label, variant = 'primary', loading, disabled, style, ...rest }: Props) {
+const FG: Record<Variant, string> = {
+  primary: colors.inverse,
+  outline: colors.ink,
+  ghost: colors.accent,
+  soft: colors.accent,
+  light: colors.ink,
+};
+
+export function Button({ label, variant = 'primary', loading, disabled, icon, size = 'md', style, ...rest }: Props) {
   const isDisabled = disabled || loading;
-  const fg = variant === 'primary' ? colors.inverse : colors.ink;
+  const fg = FG[variant];
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
+      accessibilityState={{ disabled: !!isDisabled, busy: !!loading }}
       disabled={isDisabled}
-      style={({ pressed }) => [
-        styles.base,
-        styles[variant],
-        pressed && styles.pressed,
-        isDisabled && styles.disabled,
-        style,
-      ]}
+      style={[styles.base, size === 'sm' && styles.sm, styles[variant], isDisabled && styles.disabled, style]}
       {...rest}>
       {loading ? (
         <ActivityIndicator color={fg} />
       ) : (
-        <Text variant="label" color={fg} align="center">
-          {label}
-        </Text>
+        <View style={styles.inner}>
+          {icon ? <Feather name={icon} size={size === 'sm' ? 15 : 17} color={fg} /> : null}
+          <Text variant="label" color={fg} align="center" style={size === 'sm' ? { fontSize: 13 } : undefined}>
+            {label}
+          </Text>
+        </View>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 52,
+    minHeight: 54,
     paddingHorizontal: space.lg,
-    borderRadius: radius.sm,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primary: { backgroundColor: colors.ink },
-  outline: { backgroundColor: 'transparent', borderWidth: hairline, borderColor: colors.ink },
+  sm: { minHeight: 40, paddingHorizontal: space.md },
+  inner: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  primary: { backgroundColor: colors.accent, ...shadow.accent },
+  outline: { backgroundColor: colors.surface, borderWidth: hairline, borderColor: colors.stoneDeep },
   ghost: { backgroundColor: 'transparent' },
-  pressed: { opacity: 0.75 },
-  disabled: { opacity: 0.4 },
+  soft: { backgroundColor: colors.accentSoft },
+  light: { backgroundColor: colors.surface, ...shadow.md },
+  disabled: { opacity: 0.4, boxShadow: 'none' },
 });
