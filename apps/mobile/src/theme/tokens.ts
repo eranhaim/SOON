@@ -72,6 +72,29 @@ export const radius = {
 export const hairline = 1;
 
 /** Soft, warm shadows (boxShadow works on web and on native with the new architecture). */
+/**
+ * Corner style per kind of element — the one place to tune "rounded vs square".
+ * The customer wants a mix: square for content (photos, cards, buttons, inputs, tables),
+ * soft or round only where it reads as refined (her reference: round floating icon
+ * buttons and avatars, sheets with soft tops). Adjust here when her marked screenshots arrive.
+ */
+export const corners = {
+  /** Photos and vendor images (search, saved, boards). */
+  media: 0,
+  /** Content boxes, cards, tables, the invitation. */
+  card: 0,
+  /** Primary / outline buttons. */
+  button: 0,
+  /** Text inputs and the search field. */
+  input: 0,
+  /** Filter chips, tags and badges. */
+  chip: 0,
+  /** Top corners of bottom sheets. */
+  sheet: 14,
+  /** Small floating icon buttons over photos (heart, camera, back). Full circle. */
+  iconButton: 999,
+} as const;
+
 /** Barely-there depth; separation comes from spacing and off-white areas, not frames. */
 export const shadow = {
   sm: { boxShadow: '0 1px 0 rgba(0, 0, 0, 0.04)' },

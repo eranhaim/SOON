@@ -1,7 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import { ActivityIndicator, StyleSheet, View, type PressableProps, type ViewStyle } from 'react-native';
 
-import { colors, hairline, radius, shadow, space } from '@/theme/tokens';
+import { colors, corners, hairline, shadow, space } from '@/theme/tokens';
 
 import { PressableScale } from './motion';
 import { Text } from './Text';
@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
   base: {
     minHeight: 52,
     paddingHorizontal: space.lg,
-    borderRadius: radius.sm,
+    borderRadius: corners.button,
     alignItems: 'center',
     justifyContent: 'center',
   },

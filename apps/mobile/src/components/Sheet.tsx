@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, radius, shadow, space } from '@/theme/tokens';
+import { colors, corners, shadow, space } from '@/theme/tokens';
 
 import { Text } from './Text';
 
@@ -66,11 +66,11 @@ const styles = StyleSheet.create({
     maxWidth: 560,
     maxHeight: '92%',
     backgroundColor: colors.background,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
+    borderTopLeftRadius: corners.sheet,
+    borderTopRightRadius: corners.sheet,
     ...shadow.lg,
   },
-  dialog: { borderRadius: radius.xl },
+  dialog: { borderRadius: corners.sheet },
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 0, backgroundColor: colors.stoneDeep, marginTop: 10 },
   head: {
     flexDirection: 'row',
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   close: {
     width: 34,
     height: 34,
-    borderRadius: 0,
+    borderRadius: corners.iconButton,
     backgroundColor: colors.offWhite,
     alignItems: 'center',
     justifyContent: 'center',

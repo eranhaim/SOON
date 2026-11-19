@@ -15,7 +15,7 @@ import { Text } from '@/components/Text';
 import { api } from '@/lib/api';
 import { formatDay, formatTime } from '@/lib/dates';
 import { keys, useApiQuery } from '@/lib/query';
-import { colors, fonts, radius, shadow, space, textStart } from '@/theme/tokens';
+import { colors, corners, fonts, shadow, space, textStart } from '@/theme/tokens';
 
 /** One conversation (spec §8). Polls every few seconds, so both sides see new messages live. */
 export default function Thread() {
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingVertical: space.sm,
   },
-  back: { width: 40, height: 40, borderRadius: 0, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow.sm },
+  back: { width: 40, height: 40, borderRadius: corners.iconButton, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow.sm },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   context: {
     flexDirection: 'row',
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     marginHorizontal: space.lg,
     paddingHorizontal: space.md,
     paddingVertical: 8,
-    borderRadius: radius.pill,
+    borderRadius: corners.chip,
     backgroundColor: colors.goldSoft,
   },
   messages: { padding: space.lg, gap: space.sm, maxWidth: 720, width: '100%', alignSelf: 'center' },
@@ -230,8 +230,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.ink,
     backgroundColor: colors.surface,
-    borderRadius: 0,
+    borderRadius: corners.input,
     ...shadow.sm,
   },
-  send: { width: 48, height: 48, borderRadius: 0, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', ...shadow.accent },
+  send: { width: 48, height: 48, borderRadius: corners.iconButton, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', ...shadow.accent },
 });

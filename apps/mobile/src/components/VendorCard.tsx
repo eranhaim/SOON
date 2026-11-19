@@ -12,15 +12,7 @@ import {
 } from "@soon/shared";
 
 import { useToggleSave } from "@/lib/saved";
-import {
-  atEnd,
-  atStart,
-  colors,
-  fonts,
-  radius,
-  shadow,
-  space,
-} from "@/theme/tokens";
+import { atEnd, atStart, colors, corners, fonts, shadow, space } from "@/theme/tokens";
 
 import { Text } from "./Text";
 
@@ -197,7 +189,7 @@ const styles = StyleSheet.create({
     width: "100%",
     backgroundColor: colors.stone,
     overflow: "hidden",
-    borderRadius: radius.lg,
+    borderRadius: corners.media,
     ...shadow.sm,
   },
   noImage: { alignItems: "center", justifyContent: "center" },
@@ -212,7 +204,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.92)",
     paddingHorizontal: space.sm,
     paddingVertical: 3,
-    borderRadius: radius.pill,
+    borderRadius: corners.chip,
   },
   tagDark: { backgroundColor: colors.accent },
   heart: {
@@ -220,7 +212,7 @@ const styles = StyleSheet.create({
     top: space.sm,
     width: 34,
     height: 34,
-    borderRadius: 0,
+    borderRadius: corners.iconButton,
     backgroundColor: "rgba(255,255,255,0.92)",
     alignItems: "center",
     justifyContent: "center",

@@ -16,7 +16,7 @@ import { authClient } from '@/lib/auth-client';
 import { homeForRole } from '@/lib/session';
 import { Logo } from '@/components/Logo';
 import { Reveal } from '@/components/motion';
-import { colors, fonts, hairline, PHOTOS, space } from '@/theme/tokens';
+import { colors, corners, fonts, hairline, PHOTOS, space } from '@/theme/tokens';
 
 const TOO_MANY = 'יותר מדי ניסיונות. נסו שוב בעוד דקה.';
 /** Must match emailAndPassword.minPasswordLength in apps/server/src/auth.ts. */
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   banner: { height: 260, overflow: 'hidden' },
   bannerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.lg, paddingTop: space.md },
-  back: { width: 40, height: 40, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.9)', alignItems: 'center', justifyContent: 'center' },
+  back: { width: 40, height: 40, borderRadius: corners.iconButton, backgroundColor: 'rgba(255,255,255,0.9)', alignItems: 'center', justifyContent: 'center' },
   logo: { fontFamily: fonts.displayLight, fontSize: 24, letterSpacing: 8, writingDirection: 'ltr' },
   content: { padding: space.lg, paddingTop: 0, marginTop: -space.lg, gap: space.sm, maxWidth: 480, width: '100%', alignSelf: 'center' },
   lead: { marginBottom: space.lg },

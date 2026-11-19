@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'rea
 
 import { VENDOR_STATUS_LABELS, type ReadinessItem, type VendorStatus } from '@soon/shared';
 
-import { colors, hairline, radius, space } from '@/theme/tokens';
+import { colors, corners, hairline, space } from '@/theme/tokens';
 
 import { PressableScale } from './motion';
 import { Text } from './Text';
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderWidth: hairline,
     borderColor: colors.line,
-    borderRadius: radius.pill,
+    borderRadius: corners.chip,
     backgroundColor: colors.surface,
   },
   chipSelected: { backgroundColor: colors.ink, borderColor: colors.ink },
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: radius.pill,
+    borderRadius: corners.chip,
   },
   badgeDot: { width: 6, height: 6, borderRadius: 3 },
   row: {
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   iconBtn: {
     width: 38,
     height: 38,
-    borderRadius: 0,
+    borderRadius: corners.iconButton,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface,

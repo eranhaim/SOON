@@ -26,7 +26,7 @@ import { api } from '@/lib/api';
 import { formatDayDots } from '@/lib/dates';
 import { keys } from '@/lib/query';
 import { useWedding } from '@/lib/wedding';
-import { colors, fonts, hairline, radius, shadow, space, textStart } from '@/theme/tokens';
+import { colors, corners, fonts, hairline, shadow, space, textStart } from '@/theme/tokens';
 
 type Filters = {
   q: string;
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     height: 54,
     backgroundColor: colors.surface,
-    borderRadius: radius.pill,
+    borderRadius: corners.input,
     borderWidth: hairline,
     borderColor: colors.line,
     ...shadow.sm,
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
     gap: 6,
     height: 40,
     paddingHorizontal: 14,
-    borderRadius: radius.pill,
+    borderRadius: corners.chip,
     backgroundColor: colors.surface,
     borderWidth: hairline,
     borderColor: colors.line,
