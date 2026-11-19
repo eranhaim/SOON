@@ -1,50 +1,67 @@
 import { router } from 'expo-router';
-import { useEffect } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
+import { useVideoPlayer, VideoView, type VideoSource } from 'expo-video';
+import { StyleSheet, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { LangSwitch } from '@/components/LangSwitch';
+import { Logo } from '@/components/Logo';
+import { PressableScale } from '@/components/motion';
 import { Text } from '@/components/Text';
 import { homeForRole, useSessionUser } from '@/lib/session';
-import { colors, fonts } from '@/theme/tokens';
+import { atEnd, colors, space } from '@/theme/tokens';
 
 /**
- * Opening screen (spec §2): the logo fades in, then the app continues on its own
- * (or on tap) to the user's home, or to the role choice when signed out.
- * TODO: replace the dark backdrop with the short cinematic couple video (expo-video).
+ * TODO(brand): the customer's opening video. Put the file at assets/brand/intro.mp4 and set:
+ *   const INTRO_VIDEO: VideoSource = require('../../assets/brand/intro.mp4');
+ */
+const INTRO_VIDEO: VideoSource | null = null;
+
+/**
+ * Opening screen (spec §2): video in the background, the logo in the centre, a quiet
+ * "tap to continue", and the language switch in the top-left corner.
  */
 export default function Intro() {
+  const insets = useSafeAreaInsets();
   const { session, role, isPending } = useSessionUser();
 
-  useEffect(() => {
-    if (isPending) return;
-    const t = setTimeout(next, 1800);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPending]);
-
   function next() {
+    if (isPending) return;
     router.replace(session && role ? homeForRole(role) : '/choose-role');
   }
 
   return (
-    <Pressable style={styles.root} onPress={next} disabled={isPending} accessibilityRole="button" accessibilityLabel="המשך">
-      <Animated.View entering={FadeIn.duration(1400)} style={{ alignItems: 'center', gap: 14 }}>
-        <Text align="center" color={colors.inverse} style={styles.logo}>
-          SOON
-        </Text>
-        <View style={styles.rule} />
-      </Animated.View>
-      <Animated.View entering={FadeInUp.delay(600).duration(900)}>
-        <Text variant="eyebrow" align="center" color={colors.goldLight} style={{ marginTop: 18 }}>
-          החתונה שלכם, במקום אחד
-        </Text>
-      </Animated.View>
-    </Pressable>
+    <View style={styles.root}>
+      {INTRO_VIDEO ? <IntroVideo source={INTRO_VIDEO} /> : null}
+      <PressableScale style={styles.tap} onPress={next} accessibilityRole="button" accessibilityLabel="לחצו להמשך">
+        <Animated.View entering={FadeIn.duration(1200)}>
+          <Logo size={44} color={colors.inverse} />
+        </Animated.View>
+        <Animated.View entering={FadeIn.delay(900).duration(900)} style={[styles.hint, { bottom: insets.bottom + space.xl }]}>
+          <Text variant="caption" color="rgba(255,255,255,0.7)" align="center" style={{ letterSpacing: 2 }}>
+            לחצו להמשך
+          </Text>
+        </Animated.View>
+      </PressableScale>
+      <View style={[styles.lang, { top: insets.top + space.md }, atEnd(space.lg)]}>
+        <LangSwitch tone="light" />
+      </View>
+    </View>
   );
 }
 
+function IntroVideo({ source }: { source: VideoSource }) {
+  const player = useVideoPlayer(source, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+  return <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} />;
+}
+
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.night, alignItems: 'center', justifyContent: 'center' },
-  logo: { fontFamily: fonts.displayLight, fontSize: 56, lineHeight: 64, letterSpacing: 16, writingDirection: 'ltr' },
-  rule: { width: 48, height: 1, backgroundColor: colors.goldLight },
+  root: { flex: 1, backgroundColor: colors.night },
+  tap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  hint: { position: 'absolute', left: 0, right: 0 },
+  lang: { position: 'absolute' },
 });

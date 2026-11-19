@@ -14,6 +14,7 @@ import { TextField } from '@/components/TextField';
 import { api } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
 import { homeForRole } from '@/lib/session';
+import { Logo } from '@/components/Logo';
 import { Reveal } from '@/components/motion';
 import { colors, fonts, hairline, PHOTOS, space } from '@/theme/tokens';
 
@@ -104,7 +105,7 @@ export default function SignIn() {
               transition={400}
             />
             <LinearGradient
-              colors={['rgba(36,18,15,0.25)', 'rgba(36,18,15,0.1)', 'rgba(251,247,241,1)']}
+              colors={['rgba(0,0,0,0.25)', 'rgba(0,0,0,0.1)', 'rgba(255,255,255,1)']}
               locations={[0, 0.55, 1]}
               style={StyleSheet.absoluteFill}
             />
@@ -116,9 +117,7 @@ export default function SignIn() {
                 style={styles.back}>
                 <Feather name="chevron-right" size={22} color={colors.ink} />
               </Pressable>
-              <Text color={colors.inverse} style={styles.logo}>
-                SOON
-              </Text>
+              <Logo size={22} color={colors.inverse} />
               <View style={{ width: 40 }} />
             </SafeAreaView>
           </View>
@@ -197,7 +196,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   banner: { height: 260, overflow: 'hidden' },
   bannerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.lg, paddingTop: space.md },
-  back: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.9)', alignItems: 'center', justifyContent: 'center' },
+  back: { width: 40, height: 40, borderRadius: 0, backgroundColor: 'rgba(255,255,255,0.9)', alignItems: 'center', justifyContent: 'center' },
   logo: { fontFamily: fonts.displayLight, fontSize: 24, letterSpacing: 8, writingDirection: 'ltr' },
   content: { padding: space.lg, paddingTop: 0, marginTop: -space.lg, gap: space.sm, maxWidth: 480, width: '100%', alignSelf: 'center' },
   lead: { marginBottom: space.lg },

@@ -6,19 +6,20 @@ import { useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { formatAgorot, VENDOR_CATEGORIES, type CoupleHomeDTO } from '@soon/shared';
+import { formatAgorot, formatHebrewDate, VENDOR_CATEGORIES, type CoupleHomeDTO } from '@soon/shared';
 
 import { Button } from '@/components/Button';
 import { CoverPicker, DEFAULT_COVER } from '@/components/CoverPicker';
 import { PressableScale, Reveal, useCountUp } from '@/components/motion';
 import { ProgressBar } from '@/components/Progress';
+import { Logo } from '@/components/Logo';
 import { Loading, Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { VendorCard } from '@/components/VendorCard';
 import { SectionTitle } from '@/components/ui';
 import { formatDateTime, formatDayDots } from '@/lib/dates';
 import { keys, useApiQuery } from '@/lib/query';
-import { colors, fonts, radius, shadow, space } from '@/theme/tokens';
+import { colors, fonts, space } from '@/theme/tokens';
 
 /** Couple home (spec §4): photo hero with countdown, progress tiles, nudges, personal feed. */
 export default function CoupleHome() {
@@ -52,14 +53,12 @@ export default function CoupleHome() {
         <View style={styles.hero}>
           <Image source={w.coverImageUrl ?? DEFAULT_COVER} style={StyleSheet.absoluteFill} contentFit="cover" transition={500} />
           <LinearGradient
-            colors={['rgba(36,18,15,0.45)', 'rgba(36,18,15,0)', 'rgba(36,18,15,0.15)', 'rgba(36,18,15,0.82)']}
+            colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.82)']}
             locations={[0, 0.25, 0.55, 1]}
             style={StyleSheet.absoluteFill}
           />
           <View style={[styles.heroTop, { paddingTop: insets.top + space.md }]}>
-            <Text color={colors.inverse} style={styles.logo}>
-              SOON
-            </Text>
+            <Logo variant="symbol" size={34} color={colors.inverse} />
             <View style={styles.heroActions}>
               <GlassButton icon="message-circle" label="הודעות" onPress={() => router.push('/messages' as Href)} />
               <GlassButton icon="camera" label="תמונת רקע" onPress={() => setCoverOpen(true)} />
@@ -69,14 +68,9 @@ export default function CoupleHome() {
           <View style={styles.heroText}>
             {h.daysToGo != null && h.daysToGo >= 0 ? (
               <Reveal>
-                <View style={styles.countPill}>
-                  <Text color={colors.inverse} style={styles.countNum}>
-                    {days}
-                  </Text>
-                  <Text variant="eyebrow" color={colors.goldLight}>
-                    {h.daysToGo === 1 ? 'יום לחתונה' : 'ימים לחתונה'}
-                  </Text>
-                </View>
+                <Text variant="eyebrow" align="center" color={colors.inverse} style={styles.count}>
+                  {h.daysToGo === 0 ? 'היום!' : h.daysToGo === 1 ? 'נותר יום אחד' : `נותרו ${days} ימים`}
+                </Text>
               </Reveal>
             ) : null}
             <Reveal index={1}>
@@ -88,10 +82,14 @@ export default function CoupleHome() {
               </Text>
             </Reveal>
             <Reveal index={2}>
-              <Text align="center" color={colors.goldLight} style={styles.date}>
+              <Text align="center" color={colors.inverse} style={styles.date}>
                 {w.weddingDate ? formatDayDots(w.weddingDate) : 'התאריך עוד לא נקבע'}
-                {w.venueName ? `  ·  ${w.venueName}` : ''}
               </Text>
+              {w.weddingDate ? (
+                <Text align="center" color="rgba(255,255,255,0.8)" style={styles.hebDate}>
+                  {[formatHebrewDate(w.weddingDate), w.venueName].filter(Boolean).join('  ·  ')}
+                </Text>
+              ) : null}
             </Reveal>
           </View>
         </View>
@@ -145,7 +143,7 @@ export default function CoupleHome() {
                     onPress={() => i.href && router.push(i.href as Href)}
                     style={styles.insight}>
                     <View style={styles.insightIcon}>
-                      <Feather name="star" size={14} color={colors.gold} />
+                      <Feather name="arrow-left" size={14} color={colors.ink} />
                     </View>
                     <Text variant="bodySmall" style={{ flex: 1 }}>
                       {i.text}
@@ -271,47 +269,33 @@ function Carousel({ eyebrow, title, items }: { eyebrow: string; title: string; i
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
-  hero: { height: 500, overflow: 'hidden', backgroundColor: colors.night },
+  hero: { height: 520, overflow: 'hidden', backgroundColor: colors.night },
   heroTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: space.lg,
   },
-  logo: { fontFamily: fonts.displayLight, fontSize: 24, letterSpacing: 8, writingDirection: 'ltr' },
   heroActions: { flexDirection: 'row', gap: space.sm },
   glass: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(255,255,255,0.88)',
+    width: 40,
+    height: 40,
+    borderRadius: 0,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadow.sm,
   },
-  heroText: { position: 'absolute', left: 0, right: 0, bottom: 64, alignItems: 'center', paddingHorizontal: space.lg, gap: 4 },
-  countPill: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
-    alignSelf: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: 'rgba(217,190,140,0.55)',
-    backgroundColor: 'rgba(36,18,15,0.25)',
-    marginBottom: space.sm,
-  },
-  countNum: { fontFamily: fonts.display, fontSize: 22, lineHeight: 30 },
+  heroText: { position: 'absolute', left: 0, right: 0, bottom: 72, alignItems: 'center', paddingHorizontal: space.lg, gap: 4 },
+  count: { letterSpacing: 2.5, marginBottom: space.sm },
   of: { fontFamily: fonts.displayLight, fontSize: 18, lineHeight: 24, fontStyle: 'italic' },
   names: { fontFamily: fonts.display, fontSize: 44, lineHeight: 54 },
-  date: { fontFamily: fonts.bodyMedium, fontSize: 13, letterSpacing: 3, marginTop: 2 },
-  body: { paddingHorizontal: space.lg, paddingBottom: space.xxxl, gap: space.xl, marginTop: -40, maxWidth: 720, width: '100%', alignSelf: 'center' },
-  tilesCard: { backgroundColor: colors.surface, borderRadius: radius.lg, ...shadow.md, overflow: 'hidden' },
+  date: { fontFamily: fonts.bodyMedium, fontSize: 13, letterSpacing: 3, marginTop: 4 },
+  hebDate: { fontFamily: fonts.body, fontSize: 13, letterSpacing: 0.5 },
+  body: { paddingHorizontal: space.lg, paddingBottom: space.xxxl, gap: space.xl, marginTop: -44, maxWidth: 720, width: '100%', alignSelf: 'center' },
+  tilesCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
   tilesRow: { flexDirection: 'row' },
-  vRule: { width: 1, backgroundColor: colors.line, marginVertical: space.md },
-  hRule: { height: 1, backgroundColor: colors.line, marginHorizontal: space.md },
+  vRule: { width: 1, backgroundColor: colors.line },
+  hRule: { height: 1, backgroundColor: colors.line },
   tile: { flex: 1, padding: space.md, gap: 10 },
   tileValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, minHeight: 34 },
   tileValue: { fontFamily: fonts.display, fontSize: 24, lineHeight: 32, color: colors.ink, flexShrink: 0 },
@@ -319,17 +303,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.offWhite,
     padding: space.md,
-    borderRadius: radius.md,
-    ...shadow.sm,
   },
-  insightIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.goldSoft, alignItems: 'center', justifyContent: 'center' },
+  insightIcon: { width: 28, height: 28, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   cat: {
     paddingHorizontal: space.md,
     paddingVertical: 12,
     backgroundColor: colors.surface,
-    borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.line,
   },

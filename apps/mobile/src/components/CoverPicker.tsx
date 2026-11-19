@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     right: 6,
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: 0,
     backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',

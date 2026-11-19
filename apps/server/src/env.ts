@@ -28,6 +28,8 @@ const envSchema = z.object({
     ),
   /** Demo server: enables POST /api/demo/reset (demo accounts only). */
   DEMO_TOOLS: flag,
+  /** Enables AI-written invitations (Claude). Without it a built-in writer is used. */
+  ANTHROPIC_API_KEY: optional,
   /** Comma-separated emails that get the admin role. */
   ADMIN_EMAILS: z
     .string()

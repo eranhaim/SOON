@@ -9,6 +9,8 @@ const FOLDER: Record<UploadPurpose, string> = {
   'vendor-cover': 'cover',
   'vendor-logo': 'logo',
   'vendor-gallery': 'gallery',
+  'vendor-video': 'video',
+  'vendor-receipt': 'receipts',
 };
 
 export function vendorScope(vendorId: string) {

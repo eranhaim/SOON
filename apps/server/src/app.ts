@@ -9,6 +9,8 @@ import { category } from './db/schema';
 import { env, isDev } from './env';
 import { adminRoutes } from './routes/admin';
 import { boardRoutes } from './routes/boards';
+import { businessRoutes } from './routes/business';
+import { coupleToolRoutes } from './routes/couple-tools';
 import { conversationRoutes } from './routes/conversations';
 import { coupleHomeRoutes } from './routes/couple-home';
 import { crmRoutes } from './routes/crm';
@@ -69,6 +71,8 @@ export async function buildApp() {
   await app.register(conversationRoutes);
   await app.register(crmRoutes);
   await app.register(boardRoutes);
+  await app.register(coupleToolRoutes);
+  await app.register(businessRoutes);
   if (env.DEMO_TOOLS) await app.register(demoRoutes);
 
   // ---- Health / meta ----

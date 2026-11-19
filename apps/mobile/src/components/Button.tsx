@@ -21,8 +21,8 @@ type Props = Omit<PressableProps, 'style' | 'children'> & {
 const FG: Record<Variant, string> = {
   primary: colors.inverse,
   outline: colors.ink,
-  ghost: colors.accent,
-  soft: colors.accent,
+  ghost: colors.ink,
+  soft: colors.ink,
   light: colors.ink,
 };
 
@@ -52,18 +52,18 @@ export function Button({ label, variant = 'primary', loading, disabled, icon, si
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 54,
+    minHeight: 52,
     paddingHorizontal: space.lg,
-    borderRadius: radius.pill,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sm: { minHeight: 40, paddingHorizontal: space.md },
+  sm: { minHeight: 38, paddingHorizontal: space.md },
   inner: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  primary: { backgroundColor: colors.accent, ...shadow.accent },
-  outline: { backgroundColor: colors.surface, borderWidth: hairline, borderColor: colors.stoneDeep },
+  primary: { backgroundColor: colors.ink },
+  outline: { backgroundColor: colors.surface, borderWidth: hairline, borderColor: colors.ink },
   ghost: { backgroundColor: 'transparent' },
-  soft: { backgroundColor: colors.accentSoft },
+  soft: { backgroundColor: colors.offWhite },
   light: { backgroundColor: colors.surface, ...shadow.md },
-  disabled: { opacity: 0.4, boxShadow: 'none' },
+  disabled: { opacity: 0.35 },
 });

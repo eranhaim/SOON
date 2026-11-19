@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { USER_ROLES, type UserRole } from '@soon/shared';
 
 import { Button } from '@/components/Button';
+import { Logo } from '@/components/Logo';
 import { Text } from '@/components/Text';
 import { api } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
@@ -46,9 +47,7 @@ export default function Home() {
   return (
     <SafeAreaView style={styles.root}>
       <View style={styles.content}>
-        <Text variant="caption" color={colors.inkMuted} style={{ letterSpacing: 4 }}>
-          SOON
-        </Text>
+        <Logo size={20} />
         <Text variant="h1">שלום</Text>
         <Text variant="body" color={colors.inkSoft}>
           {session.user.email}

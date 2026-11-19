@@ -233,6 +233,7 @@ export async function vendorRoutes(app: FastifyInstance) {
     }
     await db.insert(vendorMedia).values({
       vendorId: ctx.vendor.id,
+      kind: body.kind ?? 'image',
       url: body.url,
       caption: body.caption ?? null,
       sortOrder: await nextSortOrder(vendorMedia, ctx.vendor.id),

@@ -17,7 +17,7 @@ import {
 import { db } from '../db';
 import { category, conversation, lead, message, vendor, vendorPackage, wedding } from '../db/schema';
 import { badRequest, isUuid, notFound } from '../http';
-import { findWeddingForUser, parseBody, requireUser, requireWedding, type SessionUser } from '../session';
+import { findWeddingForUser, parseBody, requireOwnVendor, requireUser, requireWedding, type SessionUser } from '../session';
 
 type Side = { side: 'vendor'; vendorId: string } | { side: 'couple'; weddingId: string };
 
@@ -114,6 +114,34 @@ async function postMessage(conversationId: string, senderUserId: string, body: s
 const INQUIRY_PREFIX = { message: '', quote: 'בקשה להצעת מחיר', availability: 'בדיקת זמינות' } as const;
 
 export async function conversationRoutes(app: FastifyInstance) {
+  /** Vendor: add the couple of a conversation to the CRM (when auto-add is off, or the lead was removed). */
+  app.post<{ Params: { id: string } }>('/api/conversations/:id/lead', async (request, reply) => {
+    const ctx = await requireOwnVendor(request, reply);
+    if (!ctx) return;
+    if (!isUuid(request.params.id)) return notFound(reply);
+    const [c] = await db
+      .select({ id: conversation.id, weddingId: conversation.weddingId, leadId: conversation.leadId })
+      .from(conversation)
+      .where(and(eq(conversation.id, request.params.id), eq(conversation.vendorId, ctx.vendor.id)));
+    if (!c) return notFound(reply);
+    if (c.leadId) return { leadId: c.leadId };
+    const [w] = await db.select().from(wedding).where(eq(wedding.id, c.weddingId));
+    const [l] = await db
+      .insert(lead)
+      .values({
+        vendorId: ctx.vendor.id,
+        weddingId: c.weddingId,
+        source: 'app',
+        status: 'new',
+        eventDate: w?.weddingDate ?? null,
+        location: w?.venueName ?? null,
+      })
+      .onConflictDoUpdate({ target: [lead.vendorId, lead.weddingId], set: { updatedAt: new Date() } })
+      .returning({ id: lead.id });
+    await db.update(conversation).set({ leadId: l!.id }).where(eq(conversation.id, c.id));
+    return reply.status(201).send({ leadId: l!.id });
+  });
+
   /** A couple contacts a vendor. Creates/reuses the lead and the thread, then posts the message. */
   app.post<{ Params: { vendorId: string } }>('/api/vendors/:vendorId/inquiries', async (request, reply) => {
     const ctx = await requireWedding(request, reply);
@@ -122,7 +150,7 @@ export async function conversationRoutes(app: FastifyInstance) {
     const body = await parseBody(inquirySchema, request.body, reply);
     if (!body) return;
     const [v] = await db
-      .select({ id: vendor.id })
+      .select({ id: vendor.id, settings: vendor.settings })
       .from(vendor)
       .where(and(eq(vendor.id, request.params.vendorId), eq(vendor.status, 'approved')));
     if (!v) return notFound(reply);
@@ -133,7 +161,26 @@ export async function conversationRoutes(app: FastifyInstance) {
     const w = ctx.wedding;
     const eventDate = body.eventDate ?? w.weddingDate;
 
+    // Vendors can turn off "add every inquiry to my clients"; they then add from the chat.
+    const autoLead = v.settings.autoLeadFromInquiry !== false;
+    const existingLead = autoLead
+      ? null
+      : (await db.select({ id: lead.id }).from(lead).where(and(eq(lead.vendorId, v.id), eq(lead.weddingId, w.id))))[0];
+
     const conversationId = await db.transaction(async (tx) => {
+      if (!autoLead) {
+        const [c] = await tx
+          .insert(conversation)
+          .values({ vendorId: v.id, weddingId: w.id, leadId: existingLead?.id ?? null })
+          .onConflictDoNothing()
+          .returning({ id: conversation.id });
+        if (c) return c.id;
+        const [found] = await tx
+          .select({ id: conversation.id })
+          .from(conversation)
+          .where(and(eq(conversation.vendorId, v.id), eq(conversation.weddingId, w.id)));
+        return found!.id;
+      }
       const [l] = await tx
         .insert(lead)
         .values({

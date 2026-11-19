@@ -96,6 +96,7 @@ export const reorderSchema = z.object({ ids: z.array(z.uuid()).min(1).max(200) }
 export const addMediaSchema = z.object({
   url: z.string().min(1),
   caption: optionalText(300),
+  kind: z.enum(['image', 'video']).optional(),
 });
 
 // ---------- admin ----------
@@ -103,16 +104,30 @@ export const adminRejectSchema = z.object({ reason: z.string().trim().min(5, 'נ
 export const adminSuspendSchema = z.object({ reason: z.string().trim().min(5, 'נא לפרט סיבה').max(1000) });
 
 // ---------- uploads ----------
-export const UPLOAD_PURPOSES = ['vendor-cover', 'vendor-logo', 'vendor-gallery'] as const;
+export const UPLOAD_PURPOSES = ['vendor-cover', 'vendor-logo', 'vendor-gallery', 'vendor-video', 'vendor-receipt'] as const;
 export type UploadPurpose = (typeof UPLOAD_PURPOSES)[number];
 export const IMAGE_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+export const VIDEO_CONTENT_TYPES = ['video/mp4', 'video/quicktime'] as const;
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+export const MAX_VIDEO_BYTES = 150 * 1024 * 1024;
 
-export const uploadRequestSchema = z.object({
-  purpose: z.enum(UPLOAD_PURPOSES),
-  contentType: z.enum(IMAGE_CONTENT_TYPES),
-  size: z.number().int().positive().max(MAX_IMAGE_BYTES),
-});
+/** Which file types each upload purpose accepts, and how big. */
+export const UPLOAD_RULES: Record<UploadPurpose, { types: readonly string[]; maxBytes: number }> = {
+  'vendor-cover': { types: IMAGE_CONTENT_TYPES, maxBytes: MAX_IMAGE_BYTES },
+  'vendor-logo': { types: IMAGE_CONTENT_TYPES, maxBytes: MAX_IMAGE_BYTES },
+  'vendor-gallery': { types: IMAGE_CONTENT_TYPES, maxBytes: MAX_IMAGE_BYTES },
+  'vendor-video': { types: VIDEO_CONTENT_TYPES, maxBytes: MAX_VIDEO_BYTES },
+  'vendor-receipt': { types: [...IMAGE_CONTENT_TYPES, 'application/pdf'], maxBytes: MAX_IMAGE_BYTES },
+};
+
+export const uploadRequestSchema = z
+  .object({
+    purpose: z.enum(UPLOAD_PURPOSES),
+    contentType: z.string().max(100),
+    size: z.number().int().positive(),
+  })
+  .refine((v) => UPLOAD_RULES[v.purpose].types.includes(v.contentType), { message: 'סוג הקובץ לא נתמך', path: ['contentType'] })
+  .refine((v) => v.size <= UPLOAD_RULES[v.purpose].maxBytes, { message: 'הקובץ גדול מדי', path: ['size'] });
 export type UploadRequest = z.infer<typeof uploadRequestSchema>;
 export type UploadTicket = { uploadUrl: string; publicUrl: string; headers: Record<string, string> };
 

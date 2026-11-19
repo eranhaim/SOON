@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   badge: {
     minWidth: 20,
     height: 20,
-    borderRadius: 10,
+    borderRadius: 0,
     paddingHorizontal: 6,
     backgroundColor: colors.accent,
     alignItems: 'center',

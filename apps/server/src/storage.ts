@@ -5,7 +5,14 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 import { env } from './env';
 
-const EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+const EXT: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'video/mp4': 'mp4',
+  'video/quicktime': 'mov',
+  'application/pdf': 'pdf',
+};
 
 const configured =
   env.S3_ENDPOINT && env.S3_BUCKET && env.S3_ACCESS_KEY && env.S3_SECRET_KEY && env.S3_PUBLIC_BASE_URL;

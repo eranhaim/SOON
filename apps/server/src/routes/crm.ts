@@ -93,7 +93,7 @@ async function listLeads(vendorId: string, ownerUserId: string, where?: SQL): Pr
 const paidSql = sql<number>`coalesce((select sum(${leadPayment.amountAgorot})::int from ${leadPayment}
   where ${leadPayment.leadId} = ${availabilityEntry.leadId} and ${leadPayment.paidAt} is not null), 0)`;
 
-async function listEntries(vendorId: string, where?: SQL, limit = 1000): Promise<CalendarEntryDTO[]> {
+export async function listEntries(vendorId: string, where?: SQL, limit = 1000): Promise<CalendarEntryDTO[]> {
   const rows = await db
     .select({
       e: availabilityEntry,
@@ -175,10 +175,10 @@ async function calendarWrite(reply: FastifyReply, run: () => Promise<unknown>) {
   }
 }
 
-function icsEscape(s: string) {
+export function icsEscape(s: string) {
   return s.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, '\\n');
 }
-const icsTime = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+export const icsTime = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 
 // ---------- routes ----------
 
@@ -253,6 +253,8 @@ export async function crmRoutes(app: FastifyInstance) {
     }
     const set: Partial<typeof lead.$inferInsert> = {};
     if (b.status !== undefined) set.status = b.status;
+    // First time the deal closes: stamp it for the weekly "deals" statistic.
+    if (b.status === 'booked' && !current.bookedAt) set.bookedAt = new Date();
     if (b.clientName !== undefined) set.clientName = b.clientName;
     if (b.clientPhone !== undefined) set.clientPhone = b.clientPhone;
     if (b.clientEmail !== undefined) set.clientEmail = b.clientEmail;

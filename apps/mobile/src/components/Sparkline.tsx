@@ -6,7 +6,7 @@ export function Sparkline({
   values,
   width = 140,
   height = 48,
-  color = '#D9BE8C',
+  color = '#FFFFFF',
 }: {
   values: number[];
   width?: number;
@@ -33,7 +33,7 @@ export function Sparkline({
   const area = `${d} L ${width} ${height} L 0 ${height} Z`;
   return (
     // Charts read left → right even in an RTL layout.
-    <View style={{ width, height, direction: 'ltr' }}>
+    <View style={{ width, height }}>
       <Svg width={width} height={height}>
         <Defs>
           <LinearGradient id="spark" x1="0" y1="0" x2="0" y2="1">

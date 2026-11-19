@@ -67,7 +67,7 @@ function Boards({ q, cols }: { q: ReturnType<typeof useApiQuery<BoardDTO[]>>; co
           <PressableScale scaleTo={0.97} onPress={() => router.push({ pathname: '/couple/board/[id]', params: { id: b.id } })}>
             <View style={styles.boardImage}>
               {b.coverUrl ? <Image source={b.coverUrl} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} /> : null}
-              <LinearGradient colors={['rgba(36,18,15,0)', 'rgba(36,18,15,0.55)']} locations={[0.55, 1]} style={StyleSheet.absoluteFill} />
+              <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.55)']} locations={[0.55, 1]} style={StyleSheet.absoluteFill} />
               <View style={styles.boardCount}>
                 <Feather name="image" size={11} color={colors.ink} />
                 <Text variant="caption" style={{ fontFamily: fonts.bodyMedium, fontSize: 11 }}>
@@ -187,8 +187,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentSoft,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: 'rgba(110,30,58,0.3)',
+    borderColor: 'rgba(0,0,0,0.25)',
     boxShadow: 'none',
   },
-  plus: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  plus: { width: 48, height: 48, borderRadius: 0, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
 });

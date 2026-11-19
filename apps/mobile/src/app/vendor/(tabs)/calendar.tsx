@@ -14,6 +14,7 @@ import {
 } from '@soon/shared';
 
 import { Button } from '@/components/Button';
+import { CalendarSyncSheet } from '@/components/CalendarSyncSheet';
 import { MonthCalendar, type DayMark } from '@/components/MonthCalendar';
 import { PressableScale, Reveal } from '@/components/motion';
 import { Screen } from '@/components/Screen';
@@ -30,7 +31,7 @@ const STATUS_COLOR: Record<AvailabilityStatus, string> = {
   booked: colors.accent,
   pending: colors.gold,
   unavailable: colors.inkMuted,
-  available: colors.success,
+  available: colors.stoneDeep,
 };
 
 /** Vendor calendar (spec §11): bookings, holds and personal time; drives "available on your date". */
@@ -39,6 +40,7 @@ export default function VendorCalendar() {
   const [month, setMonth] = useState(todayIso());
   const [selected, setSelected] = useState(todayIso());
   const [adding, setAdding] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const entries = useMemo(() => q.data ?? [], [q.data]);
 
   const marks = useMemo(() => {
@@ -62,7 +64,12 @@ export default function VendorCalendar() {
       subtitle="מה שתסמנו כאן קובע אם תופיעו כ״פנויים״ לזוגות"
       refreshing={q.isRefetching}
       onRefresh={() => q.refetch()}
-      right={<Button label="חסימה" icon="plus" size="sm" onPress={() => setAdding(true)} />}>
+      right={
+        <View style={{ flexDirection: 'row', gap: space.sm }}>
+          <Button label="סנכרון" icon="refresh-cw" size="sm" variant="outline" onPress={() => setSyncing(true)} />
+          <Button label="חסימה" icon="plus" size="sm" onPress={() => setAdding(true)} />
+        </View>
+      }>
       <Reveal style={styles.calendarCard}>
         <MonthCalendar month={month} onMonthChange={setMonth} selected={selected} onSelect={setSelected} marks={marks} />
         <View style={styles.legend}>
@@ -123,6 +130,7 @@ export default function VendorCalendar() {
       )}
 
       <AddEntrySheet visible={adding} date={selected} onClose={() => setAdding(false)} />
+      <CalendarSyncSheet visible={syncing} onClose={() => setSyncing(false)} />
     </Screen>
   );
 }

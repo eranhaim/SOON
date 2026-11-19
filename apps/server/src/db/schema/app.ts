@@ -18,6 +18,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -28,6 +29,8 @@ import {
 } from 'drizzle-orm/pg-core';
 
 import {
+  type InvitationDTO,
+  type VendorSettings,
   AVAILABILITY_STATUSES,
   CALENDAR_ENTRY_KINDS,
   GUEST_SIDES,
@@ -84,6 +87,8 @@ export const wedding = pgTable('wedding', {
   venueName: text('venue_name'),
   budgetTotalAgorot: integer('budget_total_agorot'),
   coverImageUrl: text('cover_image_url'),
+  /** Last saved invitation text (AI or template), shown and shared from the planning tools. */
+  invitation: jsonb('invitation').$type<InvitationDTO>(),
   ...timestamps,
 });
 
@@ -148,6 +153,16 @@ export const vendor = pgTable(
     priceToAgorot: integer('price_to_agorot'),
     cancellationPolicy: text('cancellation_policy'),
     isFeatured: boolean('is_featured').notNull().default(false),
+    /** Subscription plan (PLANS in @soon/shared). Billing is not connected yet. */
+    plan: text('plan').notNull().default('basic'),
+    planSince: timestamp('plan_since', { withTimezone: true }),
+    /** Partial VendorSettings; missing keys fall back to DEFAULT_VENDOR_SETTINGS. */
+    settings: jsonb('settings').$type<Partial<VendorSettings>>().notNull().default({}),
+    /** Printed on client documents (עוסק מורשה / ח.פ, address). */
+    taxId: text('tax_id'),
+    businessAddress: text('business_address'),
+    /** Secret token for the private ICS feed (Google / Apple calendar subscription). */
+    calendarToken: text('calendar_token').unique(),
     ...timestamps,
   },
   (t) => [
@@ -243,6 +258,8 @@ export const lead = pgTable(
     notes: text('notes'),
     nextAction: text('next_action'),
     nextActionAt: timestamp('next_action_at', { withTimezone: true }),
+    /** First time the lead reached "booked" (weekly deal statistics). */
+    bookedAt: timestamp('booked_at', { withTimezone: true }),
     ...timestamps,
   },
   (t) => [
@@ -374,6 +391,77 @@ export const boardItem = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('board_item_board_idx').on(t.boardId)],
+);
+
+// ---------- wedding playlist ----------
+export const weddingSong = pgTable(
+  'wedding_song',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id')
+      .notNull()
+      .references(() => wedding.id, { onDelete: 'cascade' }),
+    /** PLAYLIST_STAGES key. */
+    stage: text('stage').notNull(),
+    title: text('title').notNull(),
+    artist: text('artist'),
+    url: text('url'),
+    note: text('note'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('wedding_song_wedding_idx').on(t.weddingId, t.stage, t.sortOrder)],
+);
+
+// ---------- vendor finances ----------
+/** Business expenses (the vendor's own costs), with an optional receipt file. */
+export const vendorExpense = pgTable(
+  'vendor_expense',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    vendorId: uuid('vendor_id')
+      .notNull()
+      .references(() => vendor.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    amountAgorot: integer('amount_agorot').notNull(),
+    spentOn: date('spent_on').notNull(),
+    /** EXPENSE_CATEGORIES key. */
+    category: text('category').notNull().default('other'),
+    receiptUrl: text('receipt_url'),
+    note: text('note'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('vendor_expense_vendor_idx').on(t.vendorId, t.spentOn)],
+);
+
+/**
+ * Documents the business issues to clients (receipts, quotes, payment requests).
+ * Numbered per vendor and kind; never edited after issue (a correction is a new document).
+ */
+export const clientDocument = pgTable(
+  'client_document',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    vendorId: uuid('vendor_id')
+      .notNull()
+      .references(() => vendor.id, { onDelete: 'cascade' }),
+    /** DOCUMENT_KINDS key. */
+    kind: text('kind').notNull(),
+    number: integer('number').notNull(),
+    issuedOn: date('issued_on').notNull(),
+    leadId: uuid('lead_id').references(() => lead.id, { onDelete: 'set null' }),
+    clientName: text('client_name').notNull(),
+    clientPhone: text('client_phone'),
+    clientEmail: text('client_email'),
+    description: text('description').notNull(),
+    amountAgorot: integer('amount_agorot').notNull(),
+    paymentMethod: text('payment_method'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('client_document_number_uq').on(t.vendorId, t.kind, t.number),
+    index('client_document_vendor_idx').on(t.vendorId, t.issuedOn),
+  ],
 );
 
 // ---------- admin action log (spec §17) ----------

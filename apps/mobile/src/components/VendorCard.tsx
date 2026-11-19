@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     ...shadow.sm,
   },
   noImage: { alignItems: "center", justifyContent: "center" },
-  dim: { backgroundColor: "rgba(251,247,241,0.5)" },
+  dim: { backgroundColor: "rgba(255,255,255,0.55)" },
   tags: {
     position: "absolute",
     top: space.sm,
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     top: space.sm,
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: 0,
     backgroundColor: "rgba(255,255,255,0.92)",
     alignItems: "center",
     justifyContent: "center",

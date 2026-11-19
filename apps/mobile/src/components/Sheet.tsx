@@ -60,7 +60,7 @@ export function Sheet({ visible, onClose, title, eyebrow, children, footer }: Pr
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(36, 18, 15, 0.5)', alignItems: 'center' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)', alignItems: 'center' },
   panel: {
     width: '100%',
     maxWidth: 560,
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     ...shadow.lg,
   },
   dialog: { borderRadius: radius.xl },
-  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.stoneDeep, marginTop: 10 },
+  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 0, backgroundColor: colors.stoneDeep, marginTop: 10 },
   head: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   close: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: 0,
     backgroundColor: colors.offWhite,
     alignItems: 'center',
     justifyContent: 'center',

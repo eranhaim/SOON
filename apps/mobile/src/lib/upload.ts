@@ -37,3 +37,34 @@ export async function uploadImage(uri: string, purpose: UploadPurpose): Promise<
   if (!put.ok) throw new Error(`Upload failed (${put.status})`);
   return ticket.publicUrl;
 }
+
+export type PickedMedia = { uri: string; kind: 'image' | 'video'; mimeType: string | null };
+
+/** Photo library, images and videos together (portfolio). */
+export async function pickMedia(opts: { limit?: number } = {}): Promise<PickedMedia[]> {
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images', 'videos'],
+    allowsMultipleSelection: true,
+    selectionLimit: opts.limit ?? 0,
+    quality: 1,
+  });
+  if (result.canceled) return [];
+  return result.assets.map((a) => ({
+    uri: a.uri,
+    kind: a.type === 'video' ? 'video' : 'image',
+    mimeType: a.mimeType ?? null,
+  }));
+}
+
+/** Uploads a file as-is (videos, PDFs). Images should go through uploadImage (resized). */
+export async function uploadFile(uri: string, purpose: UploadPurpose, contentType: string): Promise<string> {
+  const blob = await (await fetch(uri)).blob();
+  const type = contentType || blob.type;
+  const ticket = await api<UploadTicket>('/api/uploads', {
+    method: 'POST',
+    json: { purpose, contentType: type, size: blob.size },
+  });
+  const put = await fetch(ticket.uploadUrl, { method: 'PUT', headers: ticket.headers, body: blob });
+  if (!put.ok) throw new Error(`Upload failed (${put.status})`);
+  return ticket.publicUrl;
+}

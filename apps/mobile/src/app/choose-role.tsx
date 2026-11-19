@@ -9,11 +9,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { UserRole } from '@soon/shared';
 
 import { Button } from '@/components/Button';
+import { LangSwitch } from '@/components/LangSwitch';
+import { Logo } from '@/components/Logo';
 import { PressableScale, Reveal } from '@/components/motion';
 import { Sheet } from '@/components/Sheet';
 import { Text } from '@/components/Text';
 import { signInDemo } from '@/lib/demo';
-import { colors, fonts, photo, space } from '@/theme/tokens';
+import { atEnd, colors, fonts, photo, space } from '@/theme/tokens';
 
 type Side = Extract<UserRole, 'couple' | 'vendor'>;
 
@@ -73,12 +75,12 @@ export default function ChooseRole() {
           style={styles.panel}>
           <Image source={p.image} style={StyleSheet.absoluteFill} contentFit="cover" transition={600} />
           <LinearGradient
-            colors={['rgba(36,18,15,0.05)', 'rgba(36,18,15,0.15)', 'rgba(36,18,15,0.78)']}
+            colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.78)']}
             locations={[0, 0.45, 1]}
             style={StyleSheet.absoluteFill}
           />
           <Reveal index={i + 1} style={styles.panelText}>
-            <Text variant="eyebrow" color={colors.goldLight}>
+            <Text variant="eyebrow" color="rgba(255,255,255,0.75)">
               {p.n}
             </Text>
             <Text color={colors.inverse} style={styles.panelTitle}>
@@ -88,7 +90,7 @@ export default function ChooseRole() {
               <Text variant="bodySmall" color="rgba(255,255,255,0.86)">
                 {p.subtitle}
               </Text>
-              <Feather name="arrow-left" size={16} color={colors.goldLight} />
+              <Feather name="arrow-left" size={16} color={colors.inverse} />
             </View>
           </Reveal>
         </PressableScale>
@@ -96,10 +98,10 @@ export default function ChooseRole() {
 
       {/* Logo over the seam of the top panel */}
       <View pointerEvents="none" style={[styles.logoWrap, { top: insets.top + space.md }]}>
-        <Text color={colors.inverse} style={styles.logo}>
-          SOON
-        </Text>
-        <View style={styles.logoRule} />
+        <Logo size={26} color={colors.inverse} />
+      </View>
+      <View style={[styles.lang, { top: insets.top + space.md + 6 }, atEnd(space.lg)]}>
+        <LangSwitch tone="light" />
       </View>
 
       <Sheet visible={!!side} onClose={() => setSide(null)} eyebrow={panel?.label} title="ברוכים הבאים">
@@ -142,8 +144,7 @@ const styles = StyleSheet.create({
   panelTitle: { fontFamily: fonts.display, fontSize: 38, lineHeight: 46 },
   panelSub: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   logoWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center', gap: 6 },
-  logo: { fontFamily: fonts.displayLight, fontSize: 30, lineHeight: 36, letterSpacing: 10, writingDirection: 'ltr' },
-  logoRule: { width: 36, height: 1, backgroundColor: colors.goldLight },
+  lang: { position: 'absolute' },
   apple: { backgroundColor: colors.night, boxShadow: 'none' },
   or: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   orRule: { flex: 1, height: 1, backgroundColor: colors.line },

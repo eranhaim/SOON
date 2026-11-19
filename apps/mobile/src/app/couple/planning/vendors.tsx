@@ -118,6 +118,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     ...shadow.sm,
   },
-  icon: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.goldSoft, alignItems: 'center', justifyContent: 'center' },
+  icon: { width: 44, height: 44, borderRadius: 0, backgroundColor: colors.goldSoft, alignItems: 'center', justifyContent: 'center' },
   iconDone: { backgroundColor: colors.success },
 });

@@ -2,6 +2,8 @@ import { router, type Href } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { formatHebrewDate } from '@soon/shared';
+
 import { CoverPicker } from '@/components/CoverPicker';
 import { PressableScale, Reveal } from '@/components/motion';
 import { Screen } from '@/components/Screen';
@@ -12,7 +14,7 @@ import { formatDay } from '@/lib/dates';
 import { resetDemo, signInDemo, signOutToStart } from '@/lib/demo';
 import { useSessionUser } from '@/lib/session';
 import { useOwnWedding } from '@/lib/wedding';
-import { colors, fonts, radius, shadow, space } from '@/theme/tokens';
+import { colors, fonts, radius, space } from '@/theme/tokens';
 
 /** Couple profile (spec §3): wedding details, background, messages, language, demo tools. */
 export default function Profile() {
@@ -48,6 +50,11 @@ export default function Profile() {
             {w.weddingDate ? formatDay(w.weddingDate) : 'התאריך עוד לא נקבע'}
             {w.venueName ? ` · ${w.venueName}` : ''}
           </Text>
+          {w.weddingDate ? (
+            <Text variant="bodySmall" color={colors.inkMuted}>
+              {formatHebrewDate(w.weddingDate)}
+            </Text>
+          ) : null}
         </View>
       </Reveal>
 
@@ -138,9 +145,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: colors.goldLight,
-    ...shadow.md,
+    borderWidth: 0,
   },
   avatarText: { fontFamily: fonts.display, fontSize: 30, lineHeight: 36 },
   lang: { flexDirection: 'row', padding: 3, borderRadius: radius.pill, backgroundColor: colors.offWhite },

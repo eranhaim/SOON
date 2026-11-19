@@ -65,6 +65,6 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     borderRadius: radius.md,
   },
-  inputFocused: { borderColor: colors.accent, boxShadow: '0 0 0 3px rgba(110, 30, 58, 0.10)' },
+  inputFocused: { borderColor: colors.accent, boxShadow: '0 0 0 3px rgba(0, 0, 0, 0.06)' },
   inputError: { borderColor: colors.danger },
 });

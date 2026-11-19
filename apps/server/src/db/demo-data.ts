@@ -7,7 +7,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { hashPassword } from 'better-auth/crypto';
-import { and, inArray, isNull, like, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, like, sql } from 'drizzle-orm';
 
 import { addDays, budgetCategoryForVendor, categoryLabel, todayIso, type RegionSlug } from '@soon/shared';
 
@@ -19,6 +19,9 @@ import {
   availabilityEntry,
   board,
   boardItem,
+  clientDocument,
+  vendorExpense,
+  weddingSong,
   budgetItem,
   conversation,
   guest,
@@ -255,9 +258,13 @@ export async function seedDemo(): Promise<string> {
       { vendorId, question: 'האם אתם מגיעים לכל הארץ?', answer: 'כן, בתוספת נסיעות מחוץ לאזורי השירות שלנו.', sortOrder: 0 },
       { vendorId, question: 'כמה זמן מראש כדאי לסגור?', answer: 'מומלץ 8–12 חודשים לפני, במיוחד בעונת החתונות.', sortOrder: 1 },
     ]);
-    // A month of profile views for the analytics screen.
+    // Half a year of profile views (gently growing) for the statistics screen.
     await db.insert(vendorStatDaily).values(
-      Array.from({ length: 30 }, (_, d) => ({ vendorId, day: addDays(today, -d), views: 5 + ((i * 7 + d * 13) % 40) })),
+      Array.from({ length: 182 }, (_, d) => ({
+        vendorId,
+        day: addDays(today, -d),
+        views: 6 + ((i * 7 + d * 13) % 28) + Math.floor((182 - d) / 9),
+      })),
     );
   }
 
@@ -471,6 +478,7 @@ export async function seedDemo(): Promise<string> {
         nextAction: status === 'meeting' ? 'פגישת היכרות בסטודיו' : status === 'new' ? 'לחזור עם זמינות' : null,
         nextActionAt: status === 'meeting' ? at(3, 18) : status === 'new' ? at(0, 12) : null,
         createdAt: daysAgo(i * 4 + 1),
+        bookedAt: status === 'booked' ? daysAgo(i * 4) : null,
       })
       .returning();
     if (status === 'booked') {
@@ -548,6 +556,132 @@ export async function seedDemo(): Promise<string> {
       createdAt: daysAgo(k),
     });
   }
+
+  // ---- round 2: history for statistics, finances and documents (the demo photographer) ----
+  await db
+    .update(vendor)
+    .set({ taxId: '305123456', businessAddress: 'שדרות רוטשילד 45, תל אביב', plan: 'pro', planSince: daysAgo(64) })
+    .where(eq(vendor.id, photographer!));
+
+  // Completed and booked weddings over the last months: deposits at booking, balance at the event.
+  const past: [string, number, number, number, string][] = [
+    // name, event (days from today, negative = past), booked (days ago), price, location
+    ['הילה ונדב', -150, 230, 11_500_00, 'יקב צרעה'],
+    ['רותם ועידן', -118, 200, 12_900_00, 'הגן הבוטני'],
+    ['שירה ואלון', -96, 170, 9_800_00, 'מתחם הנגרייה'],
+    ['נוי ודניאל', -70, 150, 13_500_00, 'אחוזת ספיר'],
+    ['מיכל ואורי', -41, 120, 10_900_00, 'בית יערה'],
+    ['טל ויובל', -12, 95, 12_000_00, 'חוות רונית'],
+    ['ליה ואיתמר', 60, 66, 14_200_00, 'מלון דן'],
+    ['עדי ורון', 95, 38, 11_900_00, 'האחוזה במודיעין'],
+    ['ספיר ועמית', 130, 19, 13_000_00, 'גני הדר'],
+    ['אגם ונועם', 165, 6, 15_500_00, 'יער ירושלים'],
+  ];
+  const pastLeads: { id: string; name: string; price: number; event: string }[] = [];
+  for (const [name, eventIn, bookedAgo, price, location] of past) {
+    const eventDate = addDays(today, eventIn);
+    const done = eventIn < 0;
+    const [l] = await db
+      .insert(lead)
+      .values({
+        vendorId: photographer!,
+        clientName: name,
+        clientPhone: `05${(name.length % 8) + 1}${String(7_654_321 - eventIn * 97).slice(0, 7)}`,
+        source: 'manual',
+        status: done ? 'completed' : 'booked',
+        eventDate,
+        location,
+        guestCount: 180 + (price % 7) * 40,
+        quotedPriceAgorot: price,
+        createdAt: daysAgo(bookedAgo + 9),
+        bookedAt: daysAgo(bookedAgo),
+      })
+      .returning();
+    pastLeads.push({ id: l!.id, name, price, event: eventDate });
+    const deposit = Math.round(price * 0.3);
+    await db.insert(leadPayment).values([
+      { leadId: l!.id, title: 'מקדמה', amountAgorot: deposit, dueDate: addDays(today, -bookedAgo), paidAt: daysAgo(bookedAgo) },
+      done
+        ? { leadId: l!.id, title: 'יתרה', amountAgorot: price - deposit, dueDate: eventDate, paidAt: daysAgo(-eventIn - 1) }
+        : { leadId: l!.id, title: 'יתרה', amountAgorot: price - deposit, dueDate: eventDate },
+    ]);
+    if (!done) {
+      await db.insert(availabilityEntry).values({
+        vendorId: photographer!, status: 'booked', kind: 'event', title: `חתונה — ${name}`, location, leadId: l!.id,
+        startsAt: at(eventIn, 17), endsAt: at(eventIn, 23),
+      });
+    }
+  }
+  // Inquiries that didn't close (they count in the conversion rates).
+  const lostNames = ['קרן ושי', 'אור ויונתן', 'בר ודור', 'נטע ועומר', 'יעלי ואסף', 'מאיה וגיא', 'רוני ובן', 'הדר ואייל', 'שקד וטל'];
+  for (const [k, name] of lostNames.entries()) {
+    await db.insert(lead).values({
+      vendorId: photographer!, clientName: name, source: 'app', status: k % 3 === 0 ? 'contacted' : 'lost',
+      eventDate: addDays(today, 120 + k * 17), createdAt: daysAgo(8 + k * 9),
+    });
+  }
+  // Couples who saved the photographer, spread over the weeks.
+  const savers = await db.select({ weddingId: review.weddingId }).from(review).where(eq(review.vendorId, photographer!));
+  for (const [k, sv] of savers.entries()) {
+    await db.insert(savedVendor).values({ weddingId: sv.weddingId, vendorId: photographer!, createdAt: daysAgo(4 + k * 13) }).onConflictDoNothing();
+  }
+
+  // Business expenses (some with a receipt).
+  const receipt = img(PHOTOS.party[3]!, 900);
+  const expenses: [string, number, number, string, boolean][] = [
+    ['עדשה Sony 85mm', 6_490_00, 140, 'equipment', true],
+    ['כרטיסי זיכרון ×4', 720_00, 120, 'equipment', true],
+    ['קמפיין ממומן באינסטגרם', 1_200_00, 95, 'marketing', false],
+    ['צלם עוזר — חתונת נוי ודניאל', 1_400_00, 70, 'staff', true],
+    ['דלק ונסיעות — אוקטובר', 860_00, 45, 'travel', false],
+    ['Adobe Lightroom + Photoshop', 89_00, 33, 'software', false],
+    ['אלבומים מודפסים ×3', 2_250_00, 28, 'equipment', true],
+    ['צלם עוזר — חתונת מיכל ואורי', 1_400_00, 41, 'staff', false],
+    ['שכירות סטודיו — נובמבר', 2_800_00, 18, 'office', true],
+    ['דלק ונסיעות — נובמבר', 640_00, 9, 'travel', false],
+    ['קמפיין ממומן בפייסבוק', 900_00, 5, 'marketing', false],
+    ['Adobe Lightroom + Photoshop', 89_00, 3, 'software', false],
+  ];
+  await db.insert(vendorExpense).values(
+    expenses.map(([title, amount, ago, category, hasReceipt]) => ({
+      vendorId: photographer!, title, amountAgorot: amount, spentOn: addDays(today, -ago), category, receiptUrl: hasReceipt ? receipt : null,
+    })),
+  );
+
+  // Documents issued to clients.
+  const docs: [string, number, string, number, string][] = [
+    ['receipt', 1, pastLeads[3]!.name, Math.round(pastLeads[3]!.price * 0.3), 'מקדמה לצילום חתונה'],
+    ['receipt', 2, pastLeads[4]!.name, Math.round(pastLeads[4]!.price * 0.3), 'מקדמה לצילום חתונה'],
+    ['receipt', 3, pastLeads[5]!.name, pastLeads[5]!.price - Math.round(pastLeads[5]!.price * 0.3), 'יתרה לצילום חתונה'],
+    ['quote', 1, 'רוני ועומר', 9_900_00, 'חבילת Signature — צילום יום מלא'],
+    ['payment_request', 1, pastLeads[6]!.name, pastLeads[6]!.price - Math.round(pastLeads[6]!.price * 0.3), 'יתרה לצילום חתונה'],
+  ];
+  for (const [k, [kind, number, clientName, amount, description]] of docs.entries()) {
+    const linked = pastLeads.find((pl) => pl.name === clientName);
+    await db.insert(clientDocument).values({
+      vendorId: photographer!, kind, number, issuedOn: addDays(today, -60 + k * 12), leadId: linked?.id ?? null,
+      clientName, description, amountAgorot: amount, paymentMethod: kind === 'receipt' ? (k % 2 ? 'bit' : 'transfer') : null,
+    });
+  }
+
+  // The couple's playlist.
+  const songs: [string, string, string, string?][] = [
+    ['reception', 'Fly Me to the Moon', 'Frank Sinatra'],
+    ['reception', 'La Vie en Rose', 'Louis Armstrong'],
+    ['reception', 'בואי', 'עידן רייכל'],
+    ['chuppah_entry', 'A Thousand Years', 'Christina Perri', 'כניסת הכלה — מהפזמון'],
+    ['chuppah_entry', 'אם ננעלו', 'נעמי שמר'],
+    ['chuppah_exit', 'סימן טוב ומזל טוב', 'מסורתי'],
+    ['first_dance', 'Perfect', 'Ed Sheeran'],
+    ['dancing', 'Uptown Funk', 'Mark Ronson ft. Bruno Mars'],
+    ['dancing', 'יש לי סיבה', 'הדג נחש'],
+    ['dancing', 'Shut Up and Dance', 'Walk the Moon'],
+    ['dancing', 'מלכת השושנים', 'עומר אדם'],
+    ['closing', 'Time of My Life', 'Bill Medley & Jennifer Warnes'],
+  ];
+  await db.insert(weddingSong).values(
+    songs.map(([stage, title, artist, note], k) => ({ weddingId, stage, title, artist, note: note ?? null, sortOrder: k })),
+  );
 
   return `Seeded ${VENDORS.length} vendors, 2 pending, ${reviewerNames.length} reviewer couples, demo couple + vendor.`;
 }

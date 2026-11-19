@@ -11,6 +11,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { LangProvider } from '@/lib/lang';
 import { QueryProvider } from '@/lib/query';
 import { colors } from '@/theme/tokens';
 
@@ -37,15 +38,17 @@ export default function RootLayout() {
 
   return (
     <QueryProvider>
-      <StatusBar style="dark" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.background },
-          animation: 'fade',
-        }}>
-        <Stack.Screen name="index" options={{ contentStyle: { backgroundColor: colors.night } }} />
-      </Stack>
+      <LangProvider>
+        <StatusBar style="dark" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.background },
+            animation: 'fade',
+          }}>
+          <Stack.Screen name="index" options={{ contentStyle: { backgroundColor: colors.night } }} />
+        </Stack>
+      </LangProvider>
     </QueryProvider>
   );
 }

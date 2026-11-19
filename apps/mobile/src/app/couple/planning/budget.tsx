@@ -106,7 +106,7 @@ export default function Budget() {
           {total != null ? formatAgorot(total) : '—'}
         </Text>
         {total ? (
-          <ProgressBar value={b.committedAgorot / total} color={over ? '#E39A9A' : colors.goldLight} track="rgba(255,255,255,0.18)" height={5} />
+          <ProgressBar value={b.committedAgorot / total} color={over ? colors.inverse : colors.goldLight} track="rgba(255,255,255,0.18)" height={5} />
         ) : null}
         <View style={styles.sumRow}>
           <Sum label="הוצאנו" value={formatAgorot(b.committedAgorot)} danger={over} />
@@ -323,7 +323,7 @@ function Sum({ label, value, danger }: { label: string; value: string; danger?: 
       <Text variant="caption" color="rgba(255,255,255,0.65)">
         {label}
       </Text>
-      <Text color={danger ? '#F0B4B4' : colors.inverse} style={{ fontFamily: fonts.display, fontSize: 20, lineHeight: 28 }}>
+      <Text color={danger ? colors.inverse : colors.inverse} style={{ fontFamily: fonts.display, fontSize: 20, lineHeight: 28 }}>
         {value}
       </Text>
     </View>
@@ -336,8 +336,7 @@ const styles = StyleSheet.create({
     padding: space.lg,
     borderRadius: radius.lg,
     backgroundColor: colors.night,
-    experimental_backgroundImage: 'linear-gradient(135deg, #3A1A22 0%, #24120F 75%)',
-    ...shadow.md,
+        ...shadow.md,
   } as object,
   heroNum: { fontFamily: fonts.display, fontSize: 40, lineHeight: 48, marginTop: -6 },
   sumRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
@@ -346,6 +345,6 @@ const styles = StyleSheet.create({
   itemNum: { fontFamily: fonts.display, fontSize: 20, lineHeight: 26, color: colors.ink },
   listCard: { paddingHorizontal: space.md, borderRadius: radius.lg, backgroundColor: colors.surface, ...shadow.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md, borderBottomWidth: hairline, borderBottomColor: colors.line },
-  check: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: colors.stoneDeep, alignItems: 'center', justifyContent: 'center' },
+  check: { width: 24, height: 24, borderRadius: 0, borderWidth: 1.5, borderColor: colors.stoneDeep, alignItems: 'center', justifyContent: 'center' },
   checkOn: { backgroundColor: colors.success, borderColor: colors.success },
 });

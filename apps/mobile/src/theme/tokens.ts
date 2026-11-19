@@ -1,37 +1,39 @@
 /**
- * SOON design tokens — "Warm luxury": ivory and champagne surfaces, deep wine accent,
- * soft gold details, editorial serif headings. Think premium wedding magazine.
+ * SOON design tokens — black and white only. White, clean backgrounds; soft off-whites
+ * for depth; black text and actions; square corners; very few frames.
+ * (Legacy names like `accent` / `gold` are kept so screens need no renames: they now
+ * resolve to black and greys.)
  */
 import { Platform, type TextStyle, type ViewStyle } from 'react-native';
 
 export const colors = {
-  /** Page background: warm ivory. */
-  background: '#FBF7F1',
+  background: '#FFFFFF',
   /** Raised surfaces (cards, sheets, inputs). */
   surface: '#FFFFFF',
-  /** Tinted surface: champagne. */
-  offWhite: '#F4ECE1',
-  stone: '#EBE0D0',
-  stoneDeep: '#CDBBA0',
-  line: '#ECE2D4',
-  ink: '#2B1E1C',
-  inkSoft: '#6E5F58',
-  inkMuted: '#A3938B',
+  /** Soft off-white for depth and grouped areas. */
+  offWhite: '#F6F6F4',
+  stone: '#ECECEA',
+  stoneDeep: '#BDBDBA',
+  line: '#E6E6E4',
+  ink: '#0B0B0B',
+  inkSoft: '#555553',
+  inkMuted: '#8F8F8C',
   inverse: '#FFFFFF',
-  /** Deep wine-black for dramatic surfaces (hero, intro). */
-  night: '#24120F',
-  /** Brand accent: deep wine. Primary buttons, selected states, links. */
-  accent: '#6E1E3A',
-  accentDeep: '#4E1229',
-  accentSoft: '#F5E6EA',
-  /** Soft gold details: dividers, icons, eyebrows, stars. */
-  gold: '#B48A4E',
-  goldLight: '#D9BE8C',
-  goldSoft: '#F3E9D7',
-  success: '#3F6B4E',
-  successSoft: '#E5EFE7',
-  danger: '#9B2C2C',
-  dangerSoft: '#F6E3E1',
+  /** Black for dramatic surfaces (intro, hero cards). */
+  night: '#0B0B0B',
+  /** Actions and selected states: black. */
+  accent: '#0B0B0B',
+  accentDeep: '#000000',
+  accentSoft: '#F2F2F0',
+  /** Secondary labels and small details: greys (no colour). */
+  gold: '#6E6E6B',
+  goldLight: '#D6D6D3',
+  goldSoft: '#F2F2F0',
+  success: '#0B0B0B',
+  successSoft: '#F2F2F0',
+  /** Errors only. */
+  danger: '#8A2A2A',
+  dangerSoft: '#F6ECEC',
 } as const;
 
 export const fonts = {
@@ -57,22 +59,25 @@ export const space = {
   xxxl: 72,
 } as const;
 
+/** Square by default. `round` is for things that are circles by nature (avatars, dots). */
 export const radius = {
-  sm: 10,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  pill: 999,
+  sm: 0,
+  md: 0,
+  lg: 0,
+  xl: 0,
+  pill: 0,
+  round: 999,
 } as const;
 
 export const hairline = 1;
 
 /** Soft, warm shadows (boxShadow works on web and on native with the new architecture). */
+/** Barely-there depth; separation comes from spacing and off-white areas, not frames. */
 export const shadow = {
-  sm: { boxShadow: '0 1px 2px rgba(60, 30, 20, 0.06), 0 2px 8px rgba(60, 30, 20, 0.05)' },
-  md: { boxShadow: '0 2px 6px rgba(60, 30, 20, 0.06), 0 10px 28px rgba(60, 30, 20, 0.09)' },
-  lg: { boxShadow: '0 6px 16px rgba(60, 30, 20, 0.10), 0 24px 56px rgba(60, 30, 20, 0.16)' },
-  accent: { boxShadow: '0 6px 18px rgba(110, 30, 58, 0.28)' },
+  sm: { boxShadow: '0 1px 0 rgba(0, 0, 0, 0.04)' },
+  md: { boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.05)' },
+  lg: { boxShadow: '0 8px 40px rgba(0, 0, 0, 0.12)' },
+  accent: { boxShadow: 'none' },
 } as const satisfies Record<string, ViewStyle>;
 
 /**
@@ -107,7 +112,10 @@ export const borderAtStart = (width: number, color: string) =>
   isWeb ? { borderRightWidth: width, borderRightColor: color } : { borderStartWidth: width, borderStartColor: color };
 export const padAtStart = (n: number) => (isWeb ? { paddingRight: n } : { paddingStart: n });
 
-/** Curated photography (Unsplash) for decorative surfaces. */
+/**
+ * Curated photography for decorative surfaces.
+ * TODO(brand): replace with the customer's own photos when they arrive.
+ */
 export const photo = (id: string, w = 1200) => `https://images.unsplash.com/photo-${id}?w=${w}&q=75&auto=format&fit=crop`;
 export const PHOTOS = {
   heroCouple: photo('1519741497674-611481863552'),

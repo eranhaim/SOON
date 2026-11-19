@@ -158,5 +158,5 @@ const styles = StyleSheet.create({
   },
   pickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   pick: { width: '31.5%', aspectRatio: 0.85, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.stone },
-  pickLabel: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 4, backgroundColor: 'rgba(36,18,15,0.55)' },
+  pickLabel: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 4, backgroundColor: 'rgba(0,0,0,0.55)' },
 });

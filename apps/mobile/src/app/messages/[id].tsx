@@ -5,7 +5,9 @@ import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View, type ScrollView as ScrollViewType } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { formatAgorot, type ConversationDetail } from '@soon/shared';
+import { formatAgorot, LEAD_STATUS_LABELS, type ConversationDetail } from '@soon/shared';
+
+import { Button } from '@/components/Button';
 
 import { PressableScale } from '@/components/motion';
 import { Loading } from '@/components/Screen';
@@ -22,6 +24,7 @@ export default function Thread() {
   const q = useApiQuery<ConversationDetail>(keys.conversation(id), `/api/conversations/${id}`, { refetchInterval: 3000 });
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [addingLead, setAddingLead] = useState(false);
   const scroll = useRef<React.ComponentRef<typeof ScrollViewType>>(null);
   const count = q.data?.messages.length ?? 0;
 
@@ -39,6 +42,17 @@ export default function Thread() {
     d.context.venueName,
     d.context.quotedPriceAgorot ? `הצעה: ${formatAgorot(d.context.quotedPriceAgorot)}` : null,
   ].filter(Boolean);
+
+  async function addLead() {
+    setAddingLead(true);
+    try {
+      const { leadId } = await api<{ leadId: string }>(`/api/conversations/${id}/lead`, { method: 'POST' });
+      await Promise.all([qc.invalidateQueries({ queryKey: keys.conversation(id) }), qc.invalidateQueries({ queryKey: keys.leads })]);
+      router.push({ pathname: '/vendor/lead/[id]', params: { id: leadId } });
+    } finally {
+      setAddingLead(false);
+    }
+  }
 
   async function send() {
     const body = text.trim();
@@ -89,6 +103,28 @@ export default function Thread() {
             {ctx.join(' · ')}
           </Text>
         </View>
+      ) : null}
+
+      {d.viewerSide === 'vendor' ? (
+        d.conversation.leadId ? (
+          <PressableScale
+            onPress={() => router.push({ pathname: '/vendor/lead/[id]', params: { id: d.conversation.leadId! } })}
+            style={styles.crm}>
+            <Feather name="user-check" size={14} color={colors.ink} />
+            <Text variant="caption" style={{ flex: 1, fontFamily: fonts.bodyMedium }}>
+              {`ברשימת הלקוחות${d.conversation.leadStatus ? ` · ${LEAD_STATUS_LABELS[d.conversation.leadStatus]}` : ''}`}
+            </Text>
+            <Text variant="caption">לכרטיס הלקוח ←</Text>
+          </PressableScale>
+        ) : (
+          <View style={styles.crm}>
+            <Feather name="user-plus" size={14} color={colors.ink} />
+            <Text variant="caption" style={{ flex: 1 }}>
+              השיחה עוד לא ברשימת הלקוחות
+            </Text>
+            <Button label="הוספה כלקוח" size="sm" loading={addingLead} onPress={addLead} />
+          </View>
+        )
       ) : null}
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -144,7 +180,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingVertical: space.sm,
   },
-  back: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow.sm },
+  back: { width: 40, height: 40, borderRadius: 0, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow.sm },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   context: {
     flexDirection: 'row',
@@ -161,9 +197,19 @@ const styles = StyleSheet.create({
   // RTL: my messages sit at the start (right) side.
   rowMine: { justifyContent: 'flex-start' },
   rowTheirs: { justifyContent: 'flex-end' },
-  bubble: { maxWidth: '80%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, gap: 2 },
-  mine: { backgroundColor: colors.accent, borderBottomRightRadius: 6 },
-  theirs: { backgroundColor: colors.surface, borderBottomLeftRadius: 6, ...shadow.sm },
+  bubble: { maxWidth: '80%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 0, gap: 2 },
+  mine: { backgroundColor: colors.accent, borderBottomRightRadius: 0 },
+  theirs: { backgroundColor: colors.surface, borderBottomLeftRadius: 0, ...shadow.sm },
+  crm: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    marginHorizontal: space.lg,
+    marginTop: space.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: 8,
+    backgroundColor: colors.offWhite,
+  },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -184,8 +230,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.ink,
     backgroundColor: colors.surface,
-    borderRadius: 24,
+    borderRadius: 0,
     ...shadow.sm,
   },
-  send: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', ...shadow.accent },
+  send: { width: 48, height: 48, borderRadius: 0, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', ...shadow.accent },
 });
