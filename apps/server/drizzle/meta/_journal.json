@@ -50,6 +50,13 @@
       "when": 1795611457155,
       "tag": "0006_founder_fixes_1",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795612276501,
+      "tag": "0007_founder_fixes_2",
+      "breakpoints": true
     }
   ]
 }

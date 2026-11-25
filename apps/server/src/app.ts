@@ -10,6 +10,8 @@ import { env, isDev } from './env';
 import { adminRoutes } from './routes/admin';
 import { boardRoutes } from './routes/boards';
 import { businessRoutes } from './routes/business';
+import { coupleSocialRoutes } from './routes/couple-social';
+import { matchCallRoutes } from './routes/match-calls';
 import { coupleToolRoutes } from './routes/couple-tools';
 import { conversationRoutes } from './routes/conversations';
 import { coupleHomeRoutes } from './routes/couple-home';
@@ -73,6 +75,8 @@ export async function buildApp() {
   await app.register(boardRoutes);
   await app.register(coupleToolRoutes);
   await app.register(businessRoutes);
+  await app.register(coupleSocialRoutes);
+  await app.register(matchCallRoutes);
   if (env.DEMO_TOOLS) await app.register(demoRoutes);
 
   // ---- Health / meta ----

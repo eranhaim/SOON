@@ -1,3 +1,4 @@
+import Feather from '@expo/vector-icons/Feather';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, type Href } from 'expo-router';
@@ -12,6 +13,7 @@ import { Text } from '@/components/Text';
 import { ListRow, StatusBadge } from '@/components/ui';
 import { confirm, notify } from '@/lib/confirm';
 import { resetDemo, signInDemo, signOutToStart } from '@/lib/demo';
+import { copyLink, shareVendorLink, vendorLink } from '@/lib/links';
 import { keys, useApiQuery } from '@/lib/query';
 import { useSessionUser } from '@/lib/session';
 import { useOwnVendor } from '@/lib/vendor-context';
@@ -59,6 +61,26 @@ export default function Business() {
           </View>
         </View>
       </PressableScale>
+
+      <View style={styles.linkCard}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text variant="label" style={{ fontFamily: fonts.bodyMedium }}>
+            הקישור שלכם
+          </Text>
+          <Text variant="caption" color={colors.inkSoft} numberOfLines={1} style={{ writingDirection: 'ltr', textAlign: 'right' }}>
+            {vendorLink(vendor.slug).replace(/^https?:\/\//, '')}
+          </Text>
+          <Text variant="caption" color={colors.inkMuted}>
+            {vendor.status === 'approved' ? 'שימו אותו בביו באינסטגרם או שלחו ללקוחות.' : 'הקישור יפעל לזוגות אחרי אישור העמוד.'}
+          </Text>
+        </View>
+        <PressableScale accessibilityRole="button" accessibilityLabel="העתקת הקישור" onPress={() => void copyLink(vendorLink(vendor.slug))} style={styles.linkBtn}>
+          <Feather name="copy" size={16} color={colors.accent} />
+        </PressableScale>
+        <PressableScale accessibilityRole="button" accessibilityLabel="שיתוף הקישור" onPress={() => void shareVendorLink(vendor)} style={[styles.linkBtn, styles.linkBtnOn]}>
+          <Feather name="share-2" size={16} color={colors.inverse} />
+        </PressableScale>
+      </View>
 
       <Group title="העסק שלי">
         <ListRow icon="user" label="פרטי העסק" hint="העמוד שזוגות רואים — עריכה ישירה מתוכו" onPress={go('/vendor/storefront')} />
@@ -124,6 +146,17 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 }
 
 const styles = StyleSheet.create({
+  linkCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    padding: space.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    ...shadow.sm,
+  },
+  linkBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accentSoft },
+  linkBtnOn: { backgroundColor: colors.accent },
   cover: { borderRadius: radius.lg, ...shadow.md, height: 210, overflow: 'hidden', backgroundColor: colors.night },
   coverText: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: space.lg, gap: 4 },
   coverRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md },

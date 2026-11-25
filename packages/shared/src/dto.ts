@@ -170,6 +170,8 @@ export type WeddingEventDTO = {
   vendorId: string | null;
   vendorName: string | null;
   notes: string | null;
+  /** Set by the vendor in their calendar (match call, meeting, the event): read-only for the couple. */
+  fromVendor?: boolean;
 };
 
 /** A short, contextual nudge on the couple home (spec §4). */
@@ -284,6 +286,57 @@ export type CalendarEntryDTO = {
   leadStatus: import('./enums').LeadStatus | null;
   quotedPriceAgorot: number | null;
   paidAgorot: number;
+  /** The couple's wedding (registered in SOON), and their names. */
+  weddingId: string | null;
+  coupleNames: string | null;
+  depositAgorot: number | null;
+};
+
+/** A registered couple a vendor can pick (calendar / new client). Contact details stay private. */
+export type CoupleSearchItem = {
+  weddingId: string;
+  names: string;
+  weddingDate: string | null;
+  region: string | null;
+  /** The vendor already has this couple as a client. */
+  leadId: string | null;
+};
+
+/** Free match-call slots for a vendor (ISO instants), grouped by Israeli day. */
+export type CallSlotsDTO = { slotMinutes: number; days: { date: string; slots: string[] }[]; enabled: boolean };
+
+/** The couple's own review of a vendor (for editing). */
+export type MyReviewDTO = {
+  id: string;
+  rating: number;
+  ratingProfessionalism: number | null;
+  ratingService: number | null;
+  ratingAvailability: number | null;
+  ratingValue: number | null;
+  body: string;
+} | null;
+
+export type CommunityCoupleDTO = {
+  weddingId: string;
+  names: string;
+  weddingDate: string | null;
+  region: string | null;
+  bio: string | null;
+  /** Vendors this couple booked through SOON (category labels), for "ask them about…". */
+  bookedCategories: string[];
+  chatId: string | null;
+};
+
+export type CoupleChatListItem = {
+  id: string;
+  other: { weddingId: string; names: string };
+  lastMessage: { body: string; at: string; mine: boolean } | null;
+  unread: number;
+};
+
+export type CoupleChatDetail = {
+  chat: CoupleChatListItem;
+  messages: { id: string; body: string; createdAt: string; mine: boolean }[];
 };
 
 export type LeadListItem = {

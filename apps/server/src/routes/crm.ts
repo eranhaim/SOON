@@ -14,11 +14,13 @@ import {
   CLOSED_LEAD_STATUSES,
   LEAD_STATUSES,
   leadCreateSchema,
+  leadFromWeddingSchema,
   leadPaymentInputSchema,
   leadPaymentUpdateSchema,
   leadUpdateSchema,
   todayIso,
   type CalendarEntryDTO,
+  type CoupleSearchItem,
   type LeadDetailDTO,
   type LeadListItem,
   type LeadsDTO,
@@ -102,14 +104,15 @@ export async function listEntries(vendorId: string, where?: SQL, limit = 1000): 
       leadStatus: lead.status,
       quoted: lead.quotedPriceAgorot,
       paid: paidSql,
+      coupleNames: sql<string | null>`case when ${wedding.id} is null then null else ${wedding.partner1Name} || ' ו' || ${wedding.partner2Name} end`,
     })
     .from(availabilityEntry)
     .leftJoin(lead, eq(lead.id, availabilityEntry.leadId))
-    .leftJoin(wedding, eq(wedding.id, lead.weddingId))
+    .leftJoin(wedding, eq(wedding.id, sql`coalesce(${availabilityEntry.weddingId}, ${lead.weddingId})`))
     .where(and(eq(availabilityEntry.vendorId, vendorId), where))
     .orderBy(asc(availabilityEntry.startsAt))
     .limit(limit);
-  return rows.map(({ e, clientName, clientPhone, leadStatus, quoted, paid }) => ({
+  return rows.map(({ e, clientName, clientPhone, leadStatus, quoted, paid, coupleNames }) => ({
     id: e.id,
     status: e.status,
     kind: e.kind,
@@ -124,7 +127,33 @@ export async function listEntries(vendorId: string, where?: SQL, limit = 1000): 
     leadStatus,
     quotedPriceAgorot: quoted,
     paidAgorot: paid,
+    weddingId: e.weddingId,
+    coupleNames,
+    depositAgorot: e.depositAgorot,
   }));
+}
+
+/**
+ * Lead for a registered couple: reuse the vendor's existing lead or create one (source: app).
+ * Used when the vendor picks a couple from the search (calendar entry or "new client").
+ */
+async function leadForWedding(vendorId: string, weddingId: string): Promise<string | null> {
+  const [w] = await db
+    .select({ id: wedding.id, date: wedding.weddingDate, venue: wedding.venueName })
+    .from(wedding)
+    .where(eq(wedding.id, weddingId));
+  if (!w) return null;
+  const [row] = await db
+    .insert(lead)
+    .values({ vendorId, weddingId: w.id, source: 'manual', status: 'new', eventDate: w.date, location: w.venue })
+    .onConflictDoUpdate({ target: [lead.vendorId, lead.weddingId], set: { updatedAt: new Date() } })
+    .returning({ id: lead.id });
+  return row!.id;
+}
+
+async function weddingOfLead(leadId: string): Promise<string | null> {
+  const [l] = await db.select({ w: lead.weddingId }).from(lead).where(eq(lead.id, leadId));
+  return l?.w ?? null;
 }
 
 async function loadLead(vendorId: string, ownerUserId: string, id: string): Promise<LeadDetailDTO | null> {
@@ -183,6 +212,51 @@ export const icsTime = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace
 // ---------- routes ----------
 
 export async function crmRoutes(app: FastifyInstance) {
+  /**
+   * Find a couple registered in SOON (to add as a client or link to a calendar entry).
+   * Matches partner names, or an exact email / phone. Returns no contact details.
+   */
+  app.get<{ Querystring: { q?: string } }>('/api/couples/search', async (request, reply) => {
+    const ctx = await requireOwnVendor(request, reply);
+    if (!ctx) return;
+    const q = (request.query.q ?? '').trim().slice(0, 80);
+    if (q.length < 2) return [];
+    const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    const digits = q.replace(/\D/g, '');
+    const rows = await db.execute<{
+      wedding_id: string;
+      names: string;
+      wedding_date: string | null;
+      region: string | null;
+      lead_id: string | null;
+    }>(sql`
+      select w.id as wedding_id, w.partner1_name || ' ו' || w.partner2_name as names,
+        w.wedding_date::text as wedding_date, w.region,
+        (select l.id from lead l where l.vendor_id = ${ctx.vendor.id} and l.wedding_id = w.id) as lead_id
+      from wedding w
+      where w.partner1_name ilike ${like} or w.partner2_name ilike ${like}
+        or (w.partner1_name || ' ו' || w.partner2_name) ilike ${like}
+        or exists (select 1 from wedding_member m join "user" u on u.id = m.user_id
+          where m.wedding_id = w.id and (lower(u.email) = lower(${q})
+            or (${digits.length >= 9} and regexp_replace(coalesce(u.phone, ''), '[^0-9]', '', 'g') like '%' || ${digits.slice(-9)})))
+      order by w.wedding_date asc nulls last
+      limit 15`);
+    return rows.rows.map(
+      (r): CoupleSearchItem => ({ weddingId: r.wedding_id, names: r.names, weddingDate: r.wedding_date, region: r.region, leadId: r.lead_id }),
+    );
+  });
+
+  /** Add a registered couple as a client (or open the existing client card). */
+  app.post('/api/leads/from-wedding', async (request, reply) => {
+    const ctx = await requireOwnVendor(request, reply);
+    if (!ctx) return;
+    const b = await parseBody(leadFromWeddingSchema, request.body, reply);
+    if (!b) return;
+    const id = await leadForWedding(ctx.vendor.id, b.weddingId);
+    if (!id) return notFound(reply);
+    return reply.status(201).send({ leadId: id });
+  });
+
   // ----- leads -----
   app.get<{ Querystring: { status?: string; q?: string } }>('/api/leads', async (request, reply) => {
     const ctx = await requireOwnVendor(request, reply);
@@ -351,6 +425,13 @@ export async function crmRoutes(app: FastifyInstance) {
     const b = await parseBody(calendarEntryInputSchema, request.body, reply);
     if (!b) return;
     if (b.leadId && !(await ownLead(ctx.vendor.id, b.leadId))) return badRequest(reply, 'Unknown lead', 'leadId');
+    // Picking a registered couple links (or creates) their lead, so the entry shows under the client too.
+    let leadId = b.leadId ?? null;
+    if (b.weddingId && !leadId) {
+      leadId = await leadForWedding(ctx.vendor.id, b.weddingId);
+      if (!leadId) return badRequest(reply, 'Unknown couple', 'weddingId');
+    }
+    const weddingId = b.weddingId ?? (leadId ? await weddingOfLead(leadId) : null);
     return calendarWrite(reply, async () => {
       const [row] = await db
         .insert(availabilityEntry)
@@ -363,7 +444,9 @@ export async function crmRoutes(app: FastifyInstance) {
           title: b.title ?? null,
           location: b.location ?? null,
           note: b.note ?? null,
-          leadId: b.leadId ?? null,
+          leadId,
+          weddingId,
+          depositAgorot: b.deposit ?? null,
         })
         .returning({ id: availabilityEntry.id });
       const [entry] = await listEntries(ctx.vendor.id, eq(availabilityEntry.id, row!.id));
@@ -386,7 +469,19 @@ export async function crmRoutes(app: FastifyInstance) {
     if (b.title !== undefined) set.title = b.title;
     if (b.location !== undefined) set.location = b.location;
     if (b.note !== undefined) set.note = b.note;
-    if (b.leadId !== undefined) set.leadId = b.leadId;
+    if (b.leadId !== undefined) {
+      set.leadId = b.leadId;
+      if (b.weddingId === undefined) set.weddingId = b.leadId ? await weddingOfLead(b.leadId) : null;
+    }
+    if (b.weddingId !== undefined) {
+      set.weddingId = b.weddingId;
+      if (b.weddingId && !b.leadId) {
+        const l = await leadForWedding(ctx.vendor.id, b.weddingId);
+        if (!l) return badRequest(reply, 'Unknown couple', 'weddingId');
+        set.leadId = l;
+      }
+    }
+    if (b.deposit !== undefined) set.depositAgorot = b.deposit;
     return calendarWrite(reply, async () => {
       const [row] = await db
         .update(availabilityEntry)

@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { NOTIFICATION_KINDS, type NotificationKind, type VendorAccountDTO } from '@soon/shared';
+import { DEFAULT_MATCH_CALLS, NOTIFICATION_KINDS, type MatchCallSettings, type NotificationKind, type VendorAccountDTO } from '@soon/shared';
 
 import { Button } from '@/components/Button';
 import { LangSwitch } from '@/components/LangSwitch';
 import { Loading, Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
+import { TimeSelect } from '@/components/TimeSelect';
+import { Chip, ChipGroup } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
 import { notify } from '@/lib/confirm';
@@ -16,7 +18,9 @@ import { keys, useApiMutation, useApiQuery } from '@/lib/query';
 import { useSessionUser } from '@/lib/session';
 import { colors, fonts, space } from '@/theme/tokens';
 
-/** Vendor settings: notifications, CRM automation, invoice details, account, language. */
+const DAY_NAMES = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
+
+/** Vendor settings: notifications, CRM automation, match-call hours, invoice details, account, language. */
 export default function Settings() {
   const q = useApiQuery<VendorAccountDTO>(keys.account, '/api/vendors/me/account');
   const m = useApiMutation<VendorAccountDTO>({ setData: keys.account });
@@ -29,6 +33,11 @@ export default function Settings() {
   const acc = q.data!;
   const inv = invoice ?? { taxId: acc.taxId ?? '', address: acc.businessAddress ?? '' };
   const patch = (json: object) => m.mutate({ path: '/api/vendors/me/settings', method: 'PATCH', json });
+  const calls = { ...DEFAULT_MATCH_CALLS, ...(acc.settings.matchCalls ?? {}) };
+  const saveCalls = (next: MatchCallSettings) => {
+    if (next.from >= next.to) return notify('שעות לא תקינות', 'שעת הסיום צריכה להיות אחרי שעת ההתחלה.');
+    patch({ matchCalls: next });
+  };
 
   async function changePassword() {
     if (pw.next.length < 6) return notify('הסיסמה קצרה מדי', 'לפחות 6 תווים.');
@@ -60,6 +69,52 @@ export default function Settings() {
           value={acc.settings.autoLeadFromInquiry}
           onChange={(v) => patch({ autoLeadFromInquiry: v })}
         />
+      </Section>
+
+      <Section title="שיחות התאמה">
+        <Toggle
+          label="זוגות יכולים לקבוע איתי שיחת התאמה"
+          hint="הזוג בוחר שעה פנויה מתוך השעות שלכם, והשיחה נכנסת ליומן."
+          value={calls.enabled}
+          onChange={(v) => saveCalls({ ...calls, enabled: v })}
+        />
+        {calls.enabled ? (
+          <View style={{ gap: space.md, paddingTop: space.sm }}>
+            <View style={{ gap: space.xs }}>
+              <Text variant="caption" color={colors.inkSoft}>
+                ימים
+              </Text>
+              <ChipGroup>
+                {DAY_NAMES.map((d, i) => (
+                  <Chip
+                    key={d}
+                    label={d}
+                    selected={calls.days.includes(i)}
+                    onPress={() => saveCalls({ ...calls, days: calls.days.includes(i) ? calls.days.filter((x) => x !== i) : [...calls.days, i] })}
+                  />
+                ))}
+              </ChipGroup>
+            </View>
+            <View style={{ flexDirection: 'row', gap: space.md }}>
+              <View style={{ flex: 1 }}>
+                <TimeSelect label="משעה" value={calls.from} onChange={(from) => saveCalls({ ...calls, from })} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <TimeSelect label="עד שעה" value={calls.to} onChange={(to) => saveCalls({ ...calls, to })} />
+              </View>
+            </View>
+            <View style={{ gap: space.xs }}>
+              <Text variant="caption" color={colors.inkSoft}>
+                אורך שיחה
+              </Text>
+              <ChipGroup>
+                {([15, 20, 30] as const).map((n) => (
+                  <Chip key={n} label={`${n} דקות`} selected={calls.slotMinutes === n} onPress={() => saveCalls({ ...calls, slotMinutes: n })} />
+                ))}
+              </ChipGroup>
+            </View>
+          </View>
+        ) : null}
       </Section>
 
       <Section title="פרטים למסמכים">

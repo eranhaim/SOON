@@ -18,6 +18,7 @@ import { db } from '../db';
 import { category, conversation, lead, message, vendor, vendorPackage, wedding } from '../db/schema';
 import { badRequest, isUuid, notFound } from '../http';
 import { findWeddingForUser, parseBody, requireOwnVendor, requireUser, requireWedding, type SessionUser } from '../session';
+import { coupleChatUnread } from './couple-social';
 
 type Side = { side: 'vendor'; vendorId: string } | { side: 'couple'; weddingId: string };
 
@@ -119,7 +120,68 @@ export async function unreadTotal(s: Side, userId: string) {
   return r?.n ?? 0;
 }
 
-async function postMessage(conversationId: string, senderUserId: string, body: string, side: Side['side']) {
+/**
+ * The one couple–vendor thread (and, unless the vendor turned auto-add off, the lead).
+ * Creates or reuses both; a returning couple reopens a closed-off lead. Returns the conversation id.
+ */
+export async function openThread(
+  v: { id: string; settings: { autoLeadFromInquiry?: boolean } },
+  w: { id: string; venueName: string | null },
+  extra: { eventDate: string | null; guestCount?: number | null; packageId?: string | null } = { eventDate: null },
+): Promise<string> {
+  // Vendors can turn off "add every inquiry to my clients"; they then add from the chat.
+  const autoLead = v.settings.autoLeadFromInquiry !== false;
+  const existingLead = autoLead
+    ? null
+    : (await db.select({ id: lead.id }).from(lead).where(and(eq(lead.vendorId, v.id), eq(lead.weddingId, w.id))))[0];
+
+  return db.transaction(async (tx) => {
+    if (!autoLead) {
+      const [c] = await tx
+        .insert(conversation)
+        .values({ vendorId: v.id, weddingId: w.id, leadId: existingLead?.id ?? null })
+        .onConflictDoNothing()
+        .returning({ id: conversation.id });
+      if (c) return c.id;
+      const [found] = await tx
+        .select({ id: conversation.id })
+        .from(conversation)
+        .where(and(eq(conversation.vendorId, v.id), eq(conversation.weddingId, w.id)));
+      return found!.id;
+    }
+    const [l] = await tx
+      .insert(lead)
+      .values({
+        vendorId: v.id,
+        weddingId: w.id,
+        source: 'app',
+        status: 'new',
+        eventDate: extra.eventDate,
+        location: w.venueName,
+        guestCount: extra.guestCount ?? null,
+        packageId: extra.packageId ?? null,
+      })
+      .onConflictDoUpdate({
+        target: [lead.vendorId, lead.weddingId],
+        // A returning couple reopens a closed-off lead; otherwise keep the vendor's pipeline status.
+        set: {
+          status: sql`case when ${lead.status} in ('lost', 'cancelled') then 'new'::lead_status else ${lead.status} end`,
+          guestCount: sql`coalesce(excluded.guest_count, ${lead.guestCount})`,
+          packageId: sql`coalesce(excluded.package_id, ${lead.packageId})`,
+          eventDate: sql`coalesce(${lead.eventDate}, excluded.event_date)`,
+        },
+      })
+      .returning({ id: lead.id });
+    const [c] = await tx
+      .insert(conversation)
+      .values({ vendorId: v.id, weddingId: w.id, leadId: l!.id })
+      .onConflictDoUpdate({ target: [conversation.vendorId, conversation.weddingId], set: { leadId: l!.id } })
+      .returning({ id: conversation.id });
+    return c!.id;
+  });
+}
+
+export async function postMessage(conversationId: string, senderUserId: string, body: string, side: Side['side']) {
   const now = new Date();
   await db.transaction(async (tx) => {
     await tx.insert(message).values({ conversationId, senderUserId, body, createdAt: now });
@@ -180,55 +242,10 @@ export async function conversationRoutes(app: FastifyInstance) {
     const w = ctx.wedding;
     const eventDate = body.eventDate ?? w.weddingDate;
 
-    // Vendors can turn off "add every inquiry to my clients"; they then add from the chat.
-    const autoLead = v.settings.autoLeadFromInquiry !== false;
-    const existingLead = autoLead
-      ? null
-      : (await db.select({ id: lead.id }).from(lead).where(and(eq(lead.vendorId, v.id), eq(lead.weddingId, w.id))))[0];
-
-    const conversationId = await db.transaction(async (tx) => {
-      if (!autoLead) {
-        const [c] = await tx
-          .insert(conversation)
-          .values({ vendorId: v.id, weddingId: w.id, leadId: existingLead?.id ?? null })
-          .onConflictDoNothing()
-          .returning({ id: conversation.id });
-        if (c) return c.id;
-        const [found] = await tx
-          .select({ id: conversation.id })
-          .from(conversation)
-          .where(and(eq(conversation.vendorId, v.id), eq(conversation.weddingId, w.id)));
-        return found!.id;
-      }
-      const [l] = await tx
-        .insert(lead)
-        .values({
-          vendorId: v.id,
-          weddingId: w.id,
-          source: 'app',
-          status: 'new',
-          eventDate,
-          location: w.venueName,
-          guestCount: body.guestCount ?? null,
-          packageId: body.packageId ?? null,
-        })
-        .onConflictDoUpdate({
-          target: [lead.vendorId, lead.weddingId],
-          // A returning couple reopens a closed-off lead; otherwise keep the vendor's pipeline status.
-          set: {
-            status: sql`case when ${lead.status} in ('lost', 'cancelled') then 'new'::lead_status else ${lead.status} end`,
-            guestCount: sql`coalesce(excluded.guest_count, ${lead.guestCount})`,
-            packageId: sql`coalesce(excluded.package_id, ${lead.packageId})`,
-            eventDate: sql`coalesce(${lead.eventDate}, excluded.event_date)`,
-          },
-        })
-        .returning({ id: lead.id });
-      const [c] = await tx
-        .insert(conversation)
-        .values({ vendorId: v.id, weddingId: w.id, leadId: l!.id })
-        .onConflictDoUpdate({ target: [conversation.vendorId, conversation.weddingId], set: { leadId: l!.id } })
-        .returning({ id: conversation.id });
-      return c!.id;
+    const conversationId = await openThread(v, w, {
+      eventDate,
+      guestCount: body.guestCount ?? null,
+      packageId: body.packageId ?? null,
     });
 
     const details = [
@@ -253,7 +270,13 @@ export async function conversationRoutes(app: FastifyInstance) {
     const user = await requireUser(request, reply);
     if (!user) return;
     const s = await sideOf(user);
-    return { messages: s ? await unreadTotal(s, user.id) : 0 };
+    if (!s) return { messages: 0 };
+    // Couples: vendor chats plus chats with other couples (community).
+    const [vendorChats, coupleChats] = await Promise.all([
+      unreadTotal(s, user.id),
+      s.side === 'couple' ? coupleChatUnread(s.weddingId, user.id) : Promise.resolve(0),
+    ]);
+    return { messages: vendorChats + coupleChats, coupleChats };
   });
 
   /** Thread + context. Opening it marks it read for the viewer's side. */

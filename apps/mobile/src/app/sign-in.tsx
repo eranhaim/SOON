@@ -1,7 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,11 +29,13 @@ const PROVIDER_LABEL: Record<Provider, string> = {
 };
 
 export default function SignIn() {
-  const params = useLocalSearchParams<{ role?: string }>();
+  const params = useLocalSearchParams<{ role?: string; next?: string; mode?: string }>();
   const role = USER_ROLES.includes(params.role as UserRole) ? (params.role as UserRole) : undefined;
+  /** Where to go after signing in (a vendor page, an invite). Only paths inside the app. */
+  const next = params.next && /^\/(?![/\\])/.test(params.next) ? params.next : null;
 
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup'>(params.mode === 'signup' ? 'signup' : 'signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -53,6 +55,7 @@ export default function SignIn() {
     }
     const { data } = await authClient.getSession({ query: { disableCookieCache: true } });
     const current = (data?.user as { role?: UserRole | null } | undefined)?.role ?? role ?? null;
+    if (next) return router.replace(next as Href);
     router.replace(homeForRole(current));
   }
 

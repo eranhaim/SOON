@@ -90,8 +90,29 @@ export const wedding = pgTable('wedding', {
   coverImageUrl: text('cover_image_url'),
   /** Last saved invitation text (AI or template), shown and shared from the planning tools. */
   invitation: jsonb('invitation').$type<InvitationDTO>(),
+  /** Opt-in: other couples can find this couple in the community and message them. */
+  communityOptIn: boolean('community_opt_in').notNull().default(false),
+  /** Short line other couples see ("מתחתנים בקיץ, מחפשים המלצות על DJ"). */
+  communityBio: text('community_bio'),
   ...timestamps,
 });
+
+/** Link one partner sends the other to join the same wedding (spec §3: two partners, one wedding). */
+export const weddingInvite = pgTable(
+  'wedding_invite',
+  {
+    token: text('token').primaryKey(),
+    weddingId: uuid('wedding_id')
+      .notNull()
+      .references(() => wedding.id, { onDelete: 'cascade' }),
+    createdByUserId: text('created_by_user_id').references(() => user.id, { onDelete: 'set null' }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    usedByUserId: text('used_by_user_id').references(() => user.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('wedding_invite_wedding_idx').on(t.weddingId)],
+);
 
 export const weddingMember = pgTable(
   'wedding_member',
@@ -295,11 +316,17 @@ export const availabilityEntry = pgTable(
     title: text('title'),
     location: text('location'),
     leadId: uuid('lead_id').references(() => lead.id, { onDelete: 'set null' }),
+    /** The couple's wedding this entry belongs to; the couple then sees it in their calendar. */
+    weddingId: uuid('wedding_id').references(() => wedding.id, { onDelete: 'set null' }),
+    /** Deposit agreed for this booking, if any. */
+    depositAgorot: integer('deposit_agorot'),
     note: text('note'),
     ...timestamps,
   },
   (t) => [
     index('availability_vendor_range_idx').on(t.vendorId, t.startsAt, t.endsAt),
+    index('availability_wedding_idx').on(t.weddingId, t.startsAt),
+    check('availability_deposit_ck', sql`${t.depositAgorot} IS NULL OR ${t.depositAgorot} >= 0`),
     check('availability_range_ck', sql`${t.startsAt} < ${t.endsAt}`),
     // + EXCLUDE constraint (no overlapping 'booked' entries per vendor) in custom migration.
   ],
@@ -693,4 +720,44 @@ export const vendorStatDaily = pgTable(
     views: integer('views').notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.vendorId, t.day] })],
+);
+
+// ---------- couples community (couple <-> couple chat) ----------
+/** One thread between two weddings. weddingA < weddingB keeps each pair unique. */
+export const coupleChat = pgTable(
+  'couple_chat',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingAId: uuid('wedding_a_id')
+      .notNull()
+      .references(() => wedding.id, { onDelete: 'cascade' }),
+    weddingBId: uuid('wedding_b_id')
+      .notNull()
+      .references(() => wedding.id, { onDelete: 'cascade' }),
+    lastMessageAt: timestamp('last_message_at', { withTimezone: true }),
+    aReadAt: timestamp('a_read_at', { withTimezone: true }),
+    bReadAt: timestamp('b_read_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('couple_chat_pair_uq').on(t.weddingAId, t.weddingBId),
+    index('couple_chat_b_idx').on(t.weddingBId),
+    check('couple_chat_order_ck', sql`${t.weddingAId} < ${t.weddingBId}`),
+  ],
+);
+
+export const coupleChatMessage = pgTable(
+  'couple_chat_message',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    chatId: uuid('chat_id')
+      .notNull()
+      .references(() => coupleChat.id, { onDelete: 'cascade' }),
+    senderUserId: text('sender_user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    body: text('body').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('couple_chat_message_chat_idx').on(t.chatId, t.createdAt)],
 );

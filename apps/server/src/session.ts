@@ -14,6 +14,7 @@ export type SessionUser = {
   email: string;
   name: string;
   role?: UserRole | null;
+  phone?: string | null;
   bannedAt?: Date | string | null;
 };
 

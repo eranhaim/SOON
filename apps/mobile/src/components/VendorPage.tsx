@@ -15,6 +15,7 @@ import { formatDate } from '@/lib/dates';
 import { keys, useApiQuery } from '@/lib/query';
 import { atEnd, colors, fonts, hairline, radius, space } from '@/theme/tokens';
 
+import { Button } from './Button';
 import { Text } from './Text';
 import { Divider, type IconName } from './ui';
 
@@ -34,9 +35,13 @@ type Props = {
   mediaStatus?: string | null;
   /** Extra sections at the end. */
   footer?: ReactNode;
+  /** Couple mode: book a match call. */
+  onMatchCall?: () => void;
+  /** Couple mode: write / edit their review. */
+  onWriteReview?: () => void;
 };
 
-export function VendorPage({ vendor, onAction, saved, onEdit, onAddMedia, mediaStatus, footer }: Props) {
+export function VendorPage({ vendor, onAction, saved, onEdit, onAddMedia, mediaStatus, footer, onMatchCall, onWriteReview }: Props) {
   const window = useWindowDimensions();
   // Measure the real container width (the page can sit in a narrow column, e.g. admin review).
   const [measured, setMeasured] = useState<number | null>(null);
@@ -102,6 +107,9 @@ export function VendorPage({ vendor, onAction, saved, onEdit, onAddMedia, mediaS
           <Action icon="calendar" label="בדיקת זמינות" onPress={onAction && (() => onAction('availability'))} />
           <Action icon="file-text" label="הצעת מחיר" onPress={onAction && (() => onAction('quote'))} />
         </View>
+        {onMatchCall ? (
+          <Button variant="soft" icon="phone-call" label="קביעת שיחת התאמה" onPress={onMatchCall} style={{ marginTop: -space.sm }} />
+        ) : null}
 
         {/* Portfolio first: it sells. */}
         {vendor.media.length || owner ? (
@@ -167,7 +175,7 @@ export function VendorPage({ vendor, onAction, saved, onEdit, onAddMedia, mediaS
           </Section>
         ) : null}
 
-        {reviews.data?.length || owner ? (
+        {reviews.data?.length || owner || onWriteReview ? (
           <Section title="ביקורות והמלצות" meta={vendor.reviewCount ? `${vendor.reviewCount} ביקורות` : undefined}>
             {reviews.data?.length ? (
               reviews.data.slice(0, owner ? 3 : 6).map((r, i) => (
@@ -185,13 +193,24 @@ export function VendorPage({ vendor, onAction, saved, onEdit, onAddMedia, mediaS
                   <Text variant="caption" color={colors.inkMuted}>
                     {[r.verified ? 'עבדו עם העסק דרך SOON' : null, formatDate(r.createdAt)].filter(Boolean).join(' · ')}
                   </Text>
+                  {r.vendorReply ? (
+                    <View style={styles.reply}>
+                      <Text variant="caption" color={colors.gold} style={{ fontFamily: fonts.bodyMedium }}>
+                        {`תגובת ${vendor.businessName}`}
+                      </Text>
+                      <Text variant="bodySmall" color={colors.inkSoft}>
+                        {r.vendorReply}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
               ))
             ) : (
               <Text variant="bodySmall" color={colors.inkMuted}>
-                ביקורות מופיעות כאן אחרי שזוגות שעבדו איתכם כותבים אותן.
+                {onWriteReview ? 'עוד אין ביקורות. עבדתם איתם? היו הראשונים לכתוב.' : 'ביקורות מופיעות כאן אחרי שזוגות שעבדו איתכם כותבים אותן.'}
               </Text>
             )}
+            {onWriteReview ? <Button variant="outline" icon="star" label="כתיבת ביקורת" onPress={onWriteReview} /> : null}
           </Section>
         ) : null}
 
@@ -396,6 +415,7 @@ function VideoViewer({ url }: { url: string }) {
 }
 
 const styles = StyleSheet.create({
+  reply: { marginTop: 4, gap: 2, padding: space.sm, borderRadius: radius.md, backgroundColor: colors.offWhite },
   hero: { width: '100%', backgroundColor: colors.stone },
   heroEmpty: { alignItems: 'center', justifyContent: 'center' },
   heroEdit: {

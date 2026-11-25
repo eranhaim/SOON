@@ -4,23 +4,29 @@ import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import {
+  addDays,
   AVAILABILITY_STATUS_LABELS,
   CALENDAR_ENTRY_KIND_LABELS,
   formatAgorot,
   isoDateOf,
+  shekelsToAgorot,
   todayIso,
   type AvailabilityStatus,
   type CalendarEntryDTO,
+  type CoupleSearchItem,
 } from '@soon/shared';
 
 import { Button } from '@/components/Button';
 import { CalendarSyncSheet } from '@/components/CalendarSyncSheet';
+import { CoupleSearch } from '@/components/CoupleSearch';
+import { DateField } from '@/components/DateField';
 import { MonthCalendar, type DayMark } from '@/components/MonthCalendar';
 import { PressableScale, Reveal } from '@/components/motion';
 import { Screen } from '@/components/Screen';
 import { Sheet } from '@/components/Sheet';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
+import { TimeSelect } from '@/components/TimeSelect';
 import { Card, Chip, ChipGroup, EmptyState } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
 import { formatDay, formatTime, toInstant } from '@/lib/dates';
@@ -109,10 +115,18 @@ export default function VendorCalendar() {
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text variant="h3" numberOfLines={1}>
-                    {e.clientName ?? e.title ?? CALENDAR_ENTRY_KIND_LABELS[e.kind]}
+                    {e.title ?? e.coupleNames ?? e.clientName ?? CALENDAR_ENTRY_KIND_LABELS[e.kind]}
                   </Text>
                   <Text variant="caption" color={colors.inkMuted} numberOfLines={1}>
-                    {[AVAILABILITY_STATUS_LABELS[e.status], CALENDAR_ENTRY_KIND_LABELS[e.kind], e.location].filter(Boolean).join(' · ')}
+                    {[
+                      AVAILABILITY_STATUS_LABELS[e.status],
+                      CALENDAR_ENTRY_KIND_LABELS[e.kind],
+                      e.title && e.coupleNames ? e.coupleNames : null,
+                      e.location,
+                      e.depositAgorot ? `מקדמה ${formatAgorot(e.depositAgorot)}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </Text>
                   {e.quotedPriceAgorot ? (
                     <Text variant="caption" color={colors.success}>{`שולם ${formatAgorot(e.paidAgorot)} מתוך ${formatAgorot(e.quotedPriceAgorot)}`}</Text>
@@ -135,28 +149,80 @@ export default function VendorCalendar() {
   );
 }
 
+type EntryKind = 'event' | 'meeting' | 'call' | 'personal';
+const KIND_CHIPS: { key: EntryKind; label: string }[] = [
+  { key: 'event', label: 'אירוע' },
+  { key: 'meeting', label: 'פגישה' },
+  { key: 'call', label: 'שיחת התאמה' },
+  { key: 'personal', label: 'אישי / חופש' },
+];
+
+/** New calendar entry: what, which couple (from SOON), when (times from a list), where, deposit. */
 function AddEntrySheet({ visible, date, onClose }: { visible: boolean; date: string; onClose: () => void }) {
+  const [kind, setKind] = useState<EntryKind>('event');
   const [status, setStatus] = useState<AvailabilityStatus>('booked');
   const [title, setTitle] = useState('');
+  const [day, setDay] = useState<string | null>(date);
   const [start, setStart] = useState('18:00');
   const [end, setEnd] = useState('23:30');
+  const [location, setLocation] = useState('');
+  const [deposit, setDeposit] = useState('');
+  const [note, setNote] = useState('');
+  const [couple, setCouple] = useState<CoupleSearchItem | null>(null);
+  const [picking, setPicking] = useState(false);
   const [error, setError] = useState<string>();
-  const create = useApiMutation({ invalidate: [keys.calendar, keys.dashboard] });
+  const create = useApiMutation({ invalidate: [keys.calendar, keys.dashboard, keys.leads] });
+
+  // The sheet opens on the day the vendor tapped.
+  const [seenDate, setSeenDate] = useState(date);
+  if (date !== seenDate) {
+    setSeenDate(date);
+    setDay(date);
+  }
+
+  function pickKind(k: EntryKind) {
+    setKind(k);
+    if (k === 'personal') setStatus('unavailable');
+    else if (status === 'unavailable') setStatus('booked');
+    if (k === 'meeting' || k === 'call') {
+      setStart('10:00');
+      setEnd(k === 'call' ? '10:30' : '11:00');
+    } else if (k === 'event') {
+      setStart('18:00');
+      setEnd('23:30');
+    }
+  }
+
+  function reset() {
+    setTitle('');
+    setLocation('');
+    setDeposit('');
+    setNote('');
+    setCouple(null);
+    setError(undefined);
+  }
 
   function save() {
     setError(undefined);
+    if (!day) return setError('בחרו תאריך');
+    // An event that ends after midnight ends the next day.
+    const endDay = end <= start ? addDays(day, 1) : day;
     create.mutate(
       {
         path: '/api/calendar',
         json: {
           status,
-          kind: status === 'unavailable' ? 'personal' : 'event',
-          startsAt: toInstant(date, start),
-          endsAt: toInstant(date, end),
+          kind,
+          startsAt: toInstant(day, start),
+          endsAt: toInstant(endDay, end),
           title: title.trim() || null,
+          location: location.trim() || null,
+          note: note.trim() || null,
+          weddingId: couple?.weddingId ?? null,
+          deposit: shekelsToAgorot(deposit),
         },
       },
-      { onSuccess: () => (setTitle(''), onClose()), onError: (e) => setError(errorMessage(e)) },
+      { onSuccess: () => (reset(), onClose()), onError: (e) => setError(errorMessage(e)) },
     );
   }
 
@@ -164,23 +230,79 @@ function AddEntrySheet({ visible, date, onClose }: { visible: boolean; date: str
     <Sheet
       visible={visible}
       onClose={onClose}
-      eyebrow={formatDay(date)}
-      title="חסימת תאריך"
+      eyebrow={day ? formatDay(day) : 'יומן'}
+      title="רשומה חדשה ביומן"
       footer={<Button label="שמירה" style={{ flex: 1 }} loading={create.isPending} onPress={save} />}>
       <ChipGroup>
-        {(['booked', 'pending', 'unavailable'] as const).map((s) => (
-          <Chip key={s} label={AVAILABILITY_STATUS_LABELS[s]} selected={status === s} onPress={() => setStatus(s)} />
+        {KIND_CHIPS.map((k) => (
+          <Chip key={k.key} label={k.label} selected={kind === k.key} onPress={() => pickKind(k.key)} />
         ))}
       </ChipGroup>
-      <TextField label="כותרת" placeholder="חתונה, פגישה, חופשה…" value={title} onChangeText={setTitle} />
+      {kind !== 'personal' ? (
+        <ChipGroup>
+          {(['booked', 'pending'] as const).map((s) => (
+            <Chip key={s} label={AVAILABILITY_STATUS_LABELS[s]} selected={status === s} onPress={() => setStatus(s)} />
+          ))}
+        </ChipGroup>
+      ) : null}
+
+      {kind !== 'personal' ? (
+        <View style={{ gap: space.sm }}>
+          <Text variant="caption" color={colors.inkSoft}>
+            הזוג (לא חובה)
+          </Text>
+          {couple ? (
+            <View style={styles.couplePill}>
+              <Feather name="heart" size={14} color={colors.accent} />
+              <Text variant="bodySmall" style={{ flex: 1, fontFamily: fonts.bodyMedium }}>
+                {couple.names}
+              </Text>
+              <PressableScale accessibilityLabel="הסרת הזוג" onPress={() => setCouple(null)} hitSlop={8}>
+                <Feather name="x" size={16} color={colors.inkMuted} />
+              </PressableScale>
+            </View>
+          ) : picking ? (
+            <CoupleSearch
+              onPick={(c) => {
+                setCouple(c);
+                setPicking(false);
+              }}
+            />
+          ) : (
+            <Button variant="outline" size="sm" icon="search" label="חיפוש זוג מ־SOON" onPress={() => setPicking(true)} />
+          )}
+          {couple ? (
+            <Text variant="caption" color={colors.inkMuted}>
+              הרשומה תופיע בכרטיס הלקוח וגם ביומן של הזוג.
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      <TextField label="כותרת" placeholder={kind === 'personal' ? 'חופשה, יום אישי…' : 'חתונה, פגישת היכרות, טעימות…'} value={title} onChangeText={setTitle} />
+      <DateField label="תאריך" value={day} onChange={setDay} />
       <View style={{ flexDirection: 'row', gap: space.md }}>
         <View style={{ flex: 1 }}>
-          <TextField label="משעה" ltr value={start} onChangeText={setStart} />
+          <TimeSelect label="משעה" value={start} onChange={setStart} />
         </View>
         <View style={{ flex: 1 }}>
-          <TextField label="עד שעה" ltr value={end} onChangeText={setEnd} error={error} />
+          <TimeSelect label="עד שעה" value={end} onChange={setEnd} />
         </View>
       </View>
+      {kind !== 'personal' ? (
+        <>
+          <TextField label="מיקום" placeholder="שם האולם או הכתובת" value={location} onChangeText={setLocation} />
+          {kind === 'event' ? (
+            <TextField label="מקדמה (₪)" ltr keyboardType="number-pad" value={deposit} onChangeText={setDeposit} placeholder="0" />
+          ) : null}
+        </>
+      ) : null}
+      <TextField label="הערות" value={note} onChangeText={setNote} multiline style={{ minHeight: 70, textAlignVertical: 'top' }} />
+      {error ? (
+        <Text variant="bodySmall" color={colors.danger}>
+          {error}
+        </Text>
+      ) : null}
     </Sheet>
   );
 }
@@ -202,4 +324,5 @@ const styles = StyleSheet.create({
     ...shadow.sm,
   },
   time: { alignItems: 'center', width: 52 },
+  couplePill: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.md, borderRadius: radius.md, backgroundColor: colors.accentSoft },
 });

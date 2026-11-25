@@ -79,6 +79,7 @@ export default function WeddingCalendar() {
         {list.map((e) => (
           <Pressable
             key={e.id}
+            disabled={e.fromVendor}
             onPress={() =>
               setDraft({
                 id: e.id,
@@ -98,7 +99,7 @@ export default function WeddingCalendar() {
             <View style={{ flex: 1, gap: 2 }}>
               <Text variant="body">{e.title}</Text>
               <Text variant="caption" color={colors.inkSoft}>
-                {[WEDDING_EVENT_KIND_LABELS[e.kind], e.vendorName, e.location].filter(Boolean).join(' · ')}
+                {[e.fromVendor ? 'נקבע על ידי הספק' : WEDDING_EVENT_KIND_LABELS[e.kind], e.vendorName, e.location].filter(Boolean).join(' · ')}
               </Text>
             </View>
           </Pressable>

@@ -11,9 +11,11 @@ import { PressableScale, Reveal } from '@/components/motion';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Card, ListRow } from '@/components/ui';
+import { api } from '@/lib/api';
 import { confirm, notify } from '@/lib/confirm';
 import { formatDay } from '@/lib/dates';
 import { resetDemo, signInDemo, signOutToStart } from '@/lib/demo';
+import { shareLink, webUrl } from '@/lib/links';
 import { useSessionUser } from '@/lib/session';
 import { useUnreadCount } from '@/lib/unread';
 import { useOwnWedding } from '@/lib/wedding';
@@ -65,7 +67,20 @@ export default function Profile() {
       <Reveal index={1}>
         <Card style={{ paddingVertical: space.xs, gap: 0 }}>
           <ListRow icon="edit-3" label="פרטי החתונה" hint="שמות, תאריך, אזור ותקציב" onPress={() => router.push('/couple/wedding-details' as Href)} />
+          <ListRow
+            icon="user-plus"
+            label={busy === 'invite' ? 'יוצרים קישור…' : 'הזמנת בן/בת הזוג'}
+            hint="שלחו קישור כדי לתכנן יחד מאותו חשבון חתונה"
+            disabled={!!busy}
+            onPress={() =>
+              run('invite', async () => {
+                const { token } = await api<{ token: string }>('/api/weddings/me/invites', { method: 'POST' });
+                await shareLink(webUrl(`/invite/${token}`), 'SOON', 'בואו לתכנן איתי את החתונה שלנו ב־SOON:');
+              })
+            }
+          />
           <ListRow icon="camera" label="תמונת רקע" hint="החליפו את התמונה במסך הבית" onPress={() => setCoverOpen(true)} />
+          <ListRow icon="users" label="קהילת זוגות" hint="התייעצו עם זוגות אחרים שמתחתנים" onPress={() => router.push('/couple/community' as Href)} />
           <ListRow
             icon="message-circle"
             label="הודעות"

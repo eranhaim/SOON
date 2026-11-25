@@ -402,6 +402,7 @@ export async function businessRoutes(app: FastifyInstance) {
       ...current,
       ...(b.autoLeadFromInquiry !== undefined ? { autoLeadFromInquiry: b.autoLeadFromInquiry } : {}),
       ...(b.language ? { language: b.language } : {}),
+      ...(b.matchCalls ? { matchCalls: { ...b.matchCalls, days: [...new Set(b.matchCalls.days)].sort() } } : {}),
       notifications: { ...current.notifications, ...(b.notifications ?? {}) } as VendorSettings['notifications'],
     };
     const [row] = await db

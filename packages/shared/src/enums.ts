@@ -79,13 +79,14 @@ export const AVAILABILITY_STATUS_LABELS: Record<AvailabilityStatus, string> = {
 };
 
 /** What a calendar entry is (spec §11: wedding, meeting, personal event…). */
-export const CALENDAR_ENTRY_KINDS = ['event', 'meeting', 'personal', 'other'] as const;
+export const CALENDAR_ENTRY_KINDS = ['event', 'meeting', 'personal', 'other', 'call'] as const;
 export type CalendarEntryKind = (typeof CALENDAR_ENTRY_KINDS)[number];
 export const CALENDAR_ENTRY_KIND_LABELS: Record<CalendarEntryKind, string> = {
   event: 'אירוע',
   meeting: 'פגישה',
   personal: 'אישי',
   other: 'אחר',
+  call: 'שיחת התאמה',
 };
 
 export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {

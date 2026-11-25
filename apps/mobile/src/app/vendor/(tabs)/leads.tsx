@@ -1,21 +1,33 @@
 import Feather from '@expo/vector-icons/Feather';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
+import { ActivityIndicator, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { formatAgorot, LEAD_PIPELINE, LEAD_STATUS_LABELS, shekelsToAgorot, type LeadListItem, type LeadsDTO, type LeadStatus } from '@soon/shared';
+import {
+  formatAgorot,
+  LEAD_PIPELINE,
+  LEAD_STATUS_LABELS,
+  shekelsToAgorot,
+  type CoupleSearchItem,
+  type LeadListItem,
+  type LeadsDTO,
+  type LeadStatus,
+} from '@soon/shared';
 
 import { Button } from '@/components/Button';
+import { CoupleSearch } from '@/components/CoupleSearch';
 import { DateField } from '@/components/DateField';
 import { PressableScale, Reveal } from '@/components/motion';
 import { Sheet } from '@/components/Sheet';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
-import { errorMessage } from '@/lib/api';
+import { Chip } from '@/components/ui';
+import { api, errorMessage } from '@/lib/api';
 import { formatDayDots } from '@/lib/dates';
 import { keys, useApiMutation, useApiQuery } from '@/lib/query';
-import { colors, fonts, radius, shadow, space } from '@/theme/tokens';
+import { colors, fonts, hairline, radius, shadow, space, textStart } from '@/theme/tokens';
 
 /** Side exits shown as one extra column at the end of the board. */
 const OTHER: LeadStatus[] = ['pending', 'lost', 'cancelled'];
@@ -31,8 +43,12 @@ export default function VendorLeads() {
   const { width } = useWindowDimensions();
   const q = useApiQuery<LeadsDTO>(keys.leads, '/api/leads');
   const [adding, setAdding] = useState(false);
+  const [stage, setStage] = useState<string>('all');
+  const [search, setSearch] = useState('');
   const items = q.data?.items ?? [];
   const colWidth = Math.min(280, Math.max(240, width * 0.72));
+  /** Phones get a stage filter + one list; wide screens get the board. */
+  const board = width >= 900;
 
   const columns: { key: string; label: string; tone: string; leads: LeadListItem[] }[] = [
     ...LEAD_PIPELINE.map((s) => ({
@@ -57,7 +73,7 @@ export default function VendorLeads() {
               כל לקוח בשלב שלו, עם כל המידע במקום אחד.
             </Text>
           </View>
-          <Button label="ליד" icon="plus" size="sm" onPress={() => setAdding(true)} />
+          <Button label="לקוח חדש" icon="plus" size="sm" onPress={() => setAdding(true)} />
         </View>
 
         <View style={styles.summary}>
@@ -73,6 +89,49 @@ export default function VendorLeads() {
 
         {q.isPending ? (
           <ActivityIndicator color={colors.accent} style={{ marginTop: space.xl }} />
+        ) : !board ? (
+          <View style={{ gap: space.md }}>
+            <View style={{ paddingHorizontal: space.lg }}>
+              <View style={styles.search}>
+                <Feather name="search" size={16} color={colors.gold} />
+                <TextInput
+                  value={search}
+                  onChangeText={setSearch}
+                  placeholder="חיפוש לקוח"
+                  placeholderTextColor={colors.inkMuted}
+                  style={[styles.searchInput, { textAlign: textStart }, { outlineStyle: 'none' } as object]}
+                  accessibilityLabel="חיפוש לקוח"
+                />
+              </View>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm, paddingHorizontal: space.lg }}>
+              <Chip label={`הכל · ${items.length}`} selected={stage === 'all'} onPress={() => setStage('all')} />
+              {columns.map((c) => (
+                <Chip key={c.key} label={`${c.label} · ${c.leads.length}`} selected={stage === c.key} onPress={() => setStage(c.key)} />
+              ))}
+            </ScrollView>
+            <View style={{ gap: space.sm, paddingHorizontal: space.lg }}>
+              {(() => {
+                const term = search.trim();
+                const base = stage === 'all' ? items : (columns.find((c) => c.key === stage)?.leads ?? []);
+                const list = term ? base.filter((l) => l.clientName.includes(term)) : base;
+                if (!list.length) {
+                  return (
+                    <View style={styles.emptyCol}>
+                      <Text variant="bodySmall" color={colors.inkMuted}>
+                        {term ? 'לא נמצאו לקוחות.' : 'אין לקוחות בשלב הזה.'}
+                      </Text>
+                    </View>
+                  );
+                }
+                return list.map((l, i) => (
+                  <Reveal key={l.id} index={Math.min(i, 8)}>
+                    <LeadCard lead={l} accent={COLUMN_TONE[l.status] ?? colors.gold} showStatus={stage === 'all'} />
+                  </Reveal>
+                ));
+              })()}
+            </View>
+          </View>
         ) : (
           <ScrollView
             horizontal
@@ -122,7 +181,7 @@ function Summary({ label, value, text }: { label: string; value?: number; text?:
   );
 }
 
-function LeadCard({ lead: l, accent }: { lead: LeadListItem; accent: string }) {
+function LeadCard({ lead: l, accent, showStatus }: { lead: LeadListItem; accent: string; showStatus?: boolean }) {
   return (
     <PressableScale
       scaleTo={0.97}
@@ -132,6 +191,13 @@ function LeadCard({ lead: l, accent }: { lead: LeadListItem; accent: string }) {
         <Text variant="h3" numberOfLines={1} style={{ flex: 1, fontFamily: fonts.displayMedium, fontSize: 18 }}>
           {l.clientName}
         </Text>
+        {showStatus ? (
+          <View style={[styles.statusPill, { backgroundColor: `${accent}1A` }]}>
+            <Text variant="caption" color={accent} style={{ fontFamily: fonts.bodyMedium, fontSize: 11 }}>
+              {LEAD_STATUS_LABELS[l.status]}
+            </Text>
+          </View>
+        ) : null}
         {l.unread ? (
           <View style={styles.unread}>
             <Feather name="message-circle" size={11} color={colors.inverse} />
@@ -164,6 +230,9 @@ function LeadCard({ lead: l, accent }: { lead: LeadListItem; accent: string }) {
 }
 
 function AddLeadSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const [mode, setMode] = useState<'soon' | 'outside'>('soon');
+  const [linking, setLinking] = useState(false);
+  const qc = useQueryClient();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [date, setDate] = useState<string | null>(null);
@@ -191,17 +260,52 @@ function AddLeadSheet({ visible, onClose }: { visible: boolean; onClose: () => v
     );
   }
 
+  async function addCouple(c: CoupleSearchItem) {
+    setError(undefined);
+    setLinking(true);
+    try {
+      const { leadId } = await api<{ leadId: string }>('/api/leads/from-wedding', { method: 'POST', json: { weddingId: c.weddingId } });
+      await Promise.all([qc.invalidateQueries({ queryKey: keys.leads }), qc.invalidateQueries({ queryKey: keys.dashboard })]);
+      onClose();
+      router.push({ pathname: '/vendor/lead/[id]', params: { id: leadId } });
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setLinking(false);
+    }
+  }
+
   return (
     <Sheet
       visible={visible}
       onClose={onClose}
       eyebrow="CRM"
-      title="ליד חדש"
-      footer={<Button label="שמירה" style={{ flex: 1 }} loading={create.isPending} disabled={!name.trim()} onPress={save} />}>
-      <TextField label="שם הלקוח / הזוג" value={name} onChangeText={setName} />
-      <TextField label="טלפון" ltr keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
-      <DateField label="תאריך האירוע" value={date} onChange={setDate} clearable />
-      <TextField label="הצעת מחיר (₪)" ltr keyboardType="number-pad" value={price} onChangeText={setPrice} error={error} />
+      title="לקוח חדש"
+      footer={
+        mode === 'outside' ? <Button label="שמירה" style={{ flex: 1 }} loading={create.isPending} disabled={!name.trim()} onPress={save} /> : undefined
+      }>
+      <View style={{ flexDirection: 'row', gap: space.sm }}>
+        <Chip label="זוג מ־SOON" selected={mode === 'soon'} onPress={() => setMode('soon')} />
+        <Chip label="לקוח חיצוני" selected={mode === 'outside'} onPress={() => setMode('outside')} />
+      </View>
+      {mode === 'soon' ? (
+        <>
+          <CoupleSearch onPick={(c) => void addCouple(c)} />
+          {linking ? <ActivityIndicator color={colors.accent} /> : null}
+          {error ? (
+            <Text variant="bodySmall" color={colors.danger}>
+              {error}
+            </Text>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <TextField label="שם הלקוח / הזוג" value={name} onChangeText={setName} />
+          <TextField label="טלפון" ltr keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
+          <DateField label="תאריך האירוע" value={date} onChange={setDate} clearable />
+          <TextField label="הצעת מחיר (₪)" ltr keyboardType="number-pad" value={price} onChangeText={setPrice} error={error} />
+        </>
+      )}
     </Sheet>
   );
 }
@@ -235,5 +339,18 @@ const styles = StyleSheet.create({
   cardBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.sm, marginTop: 2 },
   unread: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: colors.accent },
   next: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  statusPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.pill },
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    height: 46,
+    paddingHorizontal: space.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: hairline,
+    borderColor: colors.line,
+  },
+  searchInput: { flex: 1, height: '100%', fontFamily: fonts.body, fontSize: 15, color: colors.ink },
   emptyCol: { paddingVertical: space.lg, alignItems: 'center' },
 });

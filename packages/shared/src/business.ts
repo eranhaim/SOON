@@ -247,23 +247,47 @@ export const NOTIFICATION_KINDS = [
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]['key'];
 
+/** When couples can book a short "match call" with the vendor (Israel time). */
+export type MatchCallSettings = {
+  enabled: boolean;
+  /** 0 = Sunday … 6 = Saturday. */
+  days: number[];
+  from: string;
+  to: string;
+  slotMinutes: 15 | 20 | 30;
+};
+
 export type VendorSettings = {
   notifications: Record<NotificationKind, boolean>;
   /** Add every new inquiry to the CRM automatically (else: one tap from the chat). */
   autoLeadFromInquiry: boolean;
   language: 'he' | 'en';
+  matchCalls: MatchCallSettings;
 };
+
+export const DEFAULT_MATCH_CALLS: MatchCallSettings = { enabled: true, days: [0, 1, 2, 3, 4], from: '10:00', to: '18:00', slotMinutes: 20 };
 
 export const DEFAULT_VENDOR_SETTINGS: VendorSettings = {
   notifications: { newInquiry: true, newMessage: true, paymentDue: true, eventReminder: true, newReview: true, weeklySummary: false },
   autoLeadFromInquiry: true,
   language: 'he',
+  matchCalls: DEFAULT_MATCH_CALLS,
 };
 
 export const vendorSettingsSchema = z.object({
   notifications: z.record(z.string(), z.boolean()).optional(),
   autoLeadFromInquiry: z.boolean().optional(),
   language: z.enum(['he', 'en']).optional(),
+  matchCalls: z
+    .object({
+      enabled: z.boolean(),
+      days: z.array(z.number().int().min(0).max(6)).max(7),
+      from: z.string().regex(/^\d{2}:\d{2}$/),
+      to: z.string().regex(/^\d{2}:\d{2}$/),
+      slotMinutes: z.union([z.literal(15), z.literal(20), z.literal(30)]),
+    })
+    .refine((m) => m.from < m.to, { message: 'שעת הסיום לפני שעת ההתחלה' })
+    .optional(),
   taxId: z.string().trim().max(20).nullable().optional(),
   businessAddress: z.string().trim().max(200).nullable().optional(),
 });

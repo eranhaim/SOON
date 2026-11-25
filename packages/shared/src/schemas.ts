@@ -321,6 +321,9 @@ export const calendarEntryInputSchema = z
     location: nullableText(200),
     note: nullableText(2000),
     leadId: z.uuid().nullable().optional(),
+    /** A couple registered in SOON (picked by search); links/creates their lead too. */
+    weddingId: z.uuid().nullable().optional(),
+    deposit: agorot.nullable().optional(),
   })
   .refine((v) => v.endsAt > v.startsAt, { message: 'שעת הסיום לפני שעת ההתחלה', path: ['endsAt'] });
 export const calendarEntryUpdateSchema = z.object({
@@ -332,7 +335,36 @@ export const calendarEntryUpdateSchema = z.object({
   location: nullableText(200),
   note: nullableText(2000),
   leadId: z.uuid().nullable().optional(),
+  weddingId: z.uuid().nullable().optional(),
+  deposit: agorot.nullable().optional(),
 });
+
+/** Vendor adds a registered couple as a client (lead) from the couple search. */
+export const leadFromWeddingSchema = z.object({ weddingId: z.uuid() });
+
+// ---------- match calls ----------
+export const callBookingSchema = z.object({ startsAt: isoDateTime, note: nullableText(500) });
+export const callbackRequestSchema = z.object({ phone: nullableText(20), note: nullableText(500) });
+
+// ---------- reviews (couples) ----------
+const stars = z.number().int().min(1).max(5);
+export const reviewInputSchema = z.object({
+  rating: stars,
+  ratingProfessionalism: stars.nullable().optional(),
+  ratingService: stars.nullable().optional(),
+  ratingAvailability: stars.nullable().optional(),
+  ratingValue: stars.nullable().optional(),
+  body: z.string().trim().min(10, 'כתבו לפחות כמה מילים').max(3000),
+});
+export type ReviewInput = z.infer<typeof reviewInputSchema>;
+export const reviewReplySchema = z.object({ reply: z.string().trim().max(2000).nullable() });
+
+// ---------- couples community ----------
+export const communityProfileSchema = z.object({
+  optIn: z.boolean(),
+  bio: nullableText(200),
+});
+export const coupleMessageSchema = z.object({ body: z.string().trim().min(1).max(4000) });
 
 // ---------- inspiration boards ----------
 export const boardCreateSchema = z.object({ title: z.string().trim().min(1).max(60) });

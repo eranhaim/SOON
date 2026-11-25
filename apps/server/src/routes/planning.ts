@@ -9,6 +9,7 @@ import type { z } from 'zod';
 import {
   budgetItemInputSchema,
   budgetItemUpdateSchema,
+  CALENDAR_ENTRY_KIND_LABELS,
   guestBulkSchema,
   guestInputSchema,
   guestUpdateSchema,
@@ -28,7 +29,7 @@ import {
 } from '@soon/shared';
 
 import { db } from '../db';
-import { budgetItem, guest, task, vendor, wedding, weddingEvent, weddingPayment } from '../db/schema';
+import { availabilityEntry, budgetItem, guest, task, vendor, wedding, weddingEvent, weddingPayment } from '../db/schema';
 import { badRequest, conflict, isCheckViolation, isUniqueViolation, isUuid, notFound } from '../http';
 import { parseBody, requireWedding } from '../session';
 
@@ -203,7 +204,27 @@ async function listEvents(weddingId: string, where?: SQL) {
     .leftJoin(vendor, eq(vendor.id, weddingEvent.vendorId))
     .where(and(eq(weddingEvent.weddingId, weddingId), where))
     .orderBy(asc(weddingEvent.startsAt));
-  return rows.map((r) => toEventDTO(r.e, r.vendorName));
+  const own = rows.map((r) => toEventDTO(r.e, r.vendorName));
+  if (where) return own;
+  // Entries vendors put in their calendar for this wedding (calls, meetings, the event itself).
+  const fromVendors = await db
+    .select({ e: availabilityEntry, vendorName: vendor.businessName })
+    .from(availabilityEntry)
+    .innerJoin(vendor, eq(vendor.id, availabilityEntry.vendorId))
+    .where(and(eq(availabilityEntry.weddingId, weddingId), sql`${availabilityEntry.status} <> 'available'`));
+  const shared: WeddingEventDTO[] = fromVendors.map(({ e, vendorName }) => ({
+    id: `v-${e.id}`,
+    kind: e.kind === 'event' ? 'other' : 'meeting',
+    title: e.kind === 'call' ? `שיחת התאמה עם ${vendorName}` : (e.title ?? CALENDAR_ENTRY_KIND_LABELS[e.kind]),
+    startsAt: e.startsAt.toISOString(),
+    endsAt: e.endsAt.toISOString(),
+    location: e.location,
+    vendorId: e.vendorId,
+    vendorName,
+    notes: null,
+    fromVendor: true,
+  }));
+  return [...own, ...shared].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
 
 async function loadGuests(weddingId: string): Promise<GuestListDTO> {
