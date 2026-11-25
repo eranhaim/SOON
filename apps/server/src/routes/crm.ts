@@ -235,8 +235,14 @@ export async function crmRoutes(app: FastifyInstance) {
         w.wedding_date::text as wedding_date, w.region,
         (select l.id from lead l where l.vendor_id = ${ctx.vendor.id} and l.wedding_id = w.id) as lead_id
       from wedding w
-      where w.partner1_name ilike ${like} or w.partner2_name ilike ${like}
-        or (w.partner1_name || ' ו' || w.partner2_name) ilike ${like}
+      where (
+          (w.partner1_name ilike ${like} or w.partner2_name ilike ${like} or (w.partner1_name || ' ו' || w.partner2_name) ilike ${like})
+          -- Names only find couples who already know this vendor, or who joined the community.
+          and (w.community_opt_in
+            or exists (select 1 from lead l where l.vendor_id = ${ctx.vendor.id} and l.wedding_id = w.id)
+            or exists (select 1 from conversation c where c.vendor_id = ${ctx.vendor.id} and c.wedding_id = w.id))
+        )
+        -- Any couple by their exact email or phone (the vendor already has it).
         or exists (select 1 from wedding_member m join "user" u on u.id = m.user_id
           where m.wedding_id = w.id and (lower(u.email) = lower(${q})
             ${digits.length >= 9 ? sql`or regexp_replace(coalesce(u.phone, ''), '[^0-9]', '', 'g') like ${`%${digits.slice(-9)}`}` : sql``}))

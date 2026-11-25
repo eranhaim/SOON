@@ -65,11 +65,13 @@ const eventIdOf = (entryId: string) => `soon${entryId.replace(/-/g, '')}`;
 
 const STATUS_HE: Record<string, string> = { booked: 'סגור', pending: 'ממתין', unavailable: 'לא זמין', available: 'פנוי' };
 
+type GoogleAuth = { token: string; calendarId: string };
+
 /** Push one entry (create or update). Best effort: errors are stored, never thrown. */
-export async function syncCalendarEntry(vendorId: string, entryId: string, log: FastifyBaseLogger) {
+export async function syncCalendarEntry(vendorId: string, entryId: string, log: FastifyBaseLogger, known?: GoogleAuth) {
   if (!googleCalendarEnabled) return;
   try {
-    const auth = await accessTokenFor(vendorId);
+    const auth = known ?? (await accessTokenFor(vendorId));
     if (!auth) return;
     const [row] = await db
       .select({ e: availabilityEntry, w1: wedding.partner1Name, w2: wedding.partner2Name, client: lead.clientName })
@@ -77,7 +79,7 @@ export async function syncCalendarEntry(vendorId: string, entryId: string, log: 
       .leftJoin(lead, eq(lead.id, availabilityEntry.leadId))
       .leftJoin(wedding, eq(wedding.id, availabilityEntry.weddingId))
       .where(eq(availabilityEntry.id, entryId));
-    if (!row) return deleteCalendarEntry(vendorId, entryId, log);
+    if (!row) return await deleteCalendarEntry(vendorId, entryId, log);
     const e = row.e;
     const who = row.w1 ? `${row.w1} ו${row.w2}` : row.client;
     const event = {
@@ -93,6 +95,7 @@ export async function syncCalendarEntry(vendorId: string, entryId: string, log: 
     let res = await gapi(auth.token, 'PUT', `/calendars/${cal}/events/${event.id}`, event);
     if (res.status === 404) res = await gapi(auth.token, 'POST', `/calendars/${cal}/events`, event);
     if (!res.ok) throw new Error(`Google event ${res.status}`);
+    if (!known) await db.update(vendorGoogleCalendar).set({ lastError: null }).where(eq(vendorGoogleCalendar.vendorId, vendorId));
   } catch (err) {
     log.warn({ err, vendorId, entryId }, 'google calendar sync failed');
     await db
@@ -113,9 +116,13 @@ export async function deleteCalendarEntry(vendorId: string, entryId: string, log
   }
 }
 
+/** First sync after connecting: one access token for all entries. */
 async function syncAll(vendorId: string, log: FastifyBaseLogger) {
+  const auth = await accessTokenFor(vendorId);
+  if (!auth) return;
   const rows = await db.select({ id: availabilityEntry.id }).from(availabilityEntry).where(eq(availabilityEntry.vendorId, vendorId));
-  for (const r of rows) await syncCalendarEntry(vendorId, r.id, log);
+  for (const r of rows) await syncCalendarEntry(vendorId, r.id, log, auth);
+  await db.update(vendorGoogleCalendar).set({ lastError: null }).where(eq(vendorGoogleCalendar.vendorId, vendorId));
 }
 
 export async function googleCalendarRoutes(app: FastifyInstance) {
@@ -164,7 +171,7 @@ export async function googleCalendarRoutes(app: FastifyInstance) {
           target: vendorGoogleCalendar.vendorId,
           set: { refreshToken: tokens.refresh_token, calendarId: cal.id, googleEmail: email ?? null, connectedAt: new Date(), lastError: null },
         });
-      void syncAll(vendorId, request.log);
+      void syncAll(vendorId, request.log).catch((err) => request.log.error({ err, vendorId }, 'google calendar first sync failed'));
       return back('connected');
     } catch (err) {
       request.log.error({ err }, 'google calendar connect failed');

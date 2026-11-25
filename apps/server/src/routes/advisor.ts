@@ -16,11 +16,21 @@ import { env } from '../env';
 import { parseBody, requireWedding, type WeddingRow } from '../session';
 import { loadBudget } from './planning';
 
+// Long chats are fine: only the last messages are used, and each is cut to a sane length.
 const advisorSchema = z.object({
   messages: z
-    .array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().trim().min(1).max(2000) }))
+    .array(
+      z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z
+          .string()
+          .trim()
+          .min(1)
+          .transform((s) => s.slice(0, 4000)),
+      }),
+    )
     .min(1)
-    .max(20)
+    .transform((m) => m.slice(-12))
     .refine((m) => m[m.length - 1]!.role === 'user', 'Last message must be the couple'),
 });
 

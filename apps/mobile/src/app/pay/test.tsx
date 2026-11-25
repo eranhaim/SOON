@@ -9,7 +9,20 @@ import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { api, errorMessage } from '@/lib/api';
+import { API_URL } from '@/lib/config';
 import { colors, radius, shadow, space } from '@/theme/tokens';
+
+/** The return address must be inside the app (no open redirect, no javascript: URLs). */
+function safeReturn(ret: string | undefined): string {
+  if (!ret) return '/';
+  try {
+    const own = new URL(Platform.OS === 'web' ? window.location.origin : API_URL);
+    const u = new URL(ret, own);
+    return u.origin === own.origin && (u.protocol === 'https:' || u.protocol === 'http:') ? u.toString() : '/';
+  } catch {
+    return '/';
+  }
+}
 
 /**
  * Test payment page (payments in test mode, before Upay is connected). No card, no money:
@@ -27,7 +40,7 @@ export default function TestPayment() {
     setError(undefined);
     try {
       await api('/api/payments/test/complete', { method: 'POST', json: { ref: p.ref, sig: p.sig, ok, amount } });
-      const back = p.ret ?? '/';
+      const back = safeReturn(p.ret);
       if (Platform.OS === 'web') window.location.href = back;
       else if (/^https?:/.test(back)) await Linking.openURL(back);
       else router.replace(back as Href);

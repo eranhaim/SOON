@@ -9,7 +9,7 @@ import { Text } from '@/components/Text';
 import { api } from '@/lib/api';
 import { colors, fonts, radius, shadow, space, textStart } from '@/theme/tokens';
 
-type Msg = { role: 'user' | 'assistant'; content: string };
+type Msg = { role: 'user' | 'assistant'; content: string; error?: boolean };
 
 const STARTERS = ['מה הדבר הבא שכדאי לנו לסגור?', 'איך לחלק את התקציב שלנו?', 'כמה זמן מראש סוגרים צלם?', 'טיפים לבחירת אולם'];
 
@@ -33,10 +33,12 @@ export default function Advisor() {
     setText('');
     setBusy(true);
     try {
-      const r = await api<{ reply: string }>('/api/advisor', { method: 'POST', json: { messages: next } });
+      // Only real turns go to the server (no error notes), and only the last few.
+      const history = next.filter((m) => !m.error).slice(-12).map(({ role, content }) => ({ role, content }));
+      const r = await api<{ reply: string }>('/api/advisor', { method: 'POST', json: { messages: history } });
       setMessages([...next, { role: 'assistant', content: r.reply }]);
     } catch {
-      setMessages([...next, { role: 'assistant', content: 'משהו השתבש. נסו שוב בעוד רגע.' }]);
+      setMessages([...next, { role: 'assistant', content: 'משהו השתבש. נסו שוב בעוד רגע.', error: true }]);
     } finally {
       setBusy(false);
     }

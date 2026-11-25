@@ -24,6 +24,10 @@ import { badRequest, conflict, isUuid, notFound } from '../http';
 import { findWeddingForUser, parseBody, requireOwnVendor, requireUser, requireWedding } from '../session';
 
 const INVITE_DAYS = 14;
+const MAX_PARTNERS = 2;
+
+const partnerCount = (weddingId: string) =>
+  db.$count(weddingMember, and(eq(weddingMember.weddingId, weddingId), eq(weddingMember.role, 'partner')));
 const namesOf = (w: { partner1Name: string; partner2Name: string }) => `${w.partner1Name} ו${w.partner2Name}`;
 
 /** Unread couple-chat messages for a wedding (added to the couple's message badge). */
@@ -78,6 +82,7 @@ export async function coupleSocialRoutes(app: FastifyInstance) {
   app.post('/api/weddings/me/invites', async (request, reply) => {
     const ctx = await requireWedding(request, reply);
     if (!ctx) return;
+    if ((await partnerCount(ctx.wedding.id)) >= MAX_PARTNERS) return conflict(reply, 'כבר יש שני בני זוג בחשבון החתונה.');
     const token = randomBytes(18).toString('base64url');
     await db.insert(weddingInvite).values({
       token,
@@ -114,18 +119,23 @@ export async function coupleSocialRoutes(app: FastifyInstance) {
     if (inv.usedAt || inv.expiresAt <= new Date()) return badRequest(reply, 'הקישור כבר נוצל או שפג תוקפו. בקשו קישור חדש.');
 
     const joined = await db.transaction(async (tx) => {
+      // One wedding, two partners: lock the wedding while counting, so two links can't both pass.
+      await tx.execute(sql`select 1 from wedding where id = ${inv.weddingId} for update`);
+      const partners = await tx.$count(weddingMember, and(eq(weddingMember.weddingId, inv.weddingId), eq(weddingMember.role, 'partner')));
+      if (partners >= MAX_PARTNERS) return 'full' as const;
       // Claim the token atomically: two people can't both use one link.
       const [claimed] = await tx
         .update(weddingInvite)
         .set({ usedAt: new Date(), usedByUserId: u.id })
         .where(and(eq(weddingInvite.token, inv.token), isNull(weddingInvite.usedAt)))
         .returning({ token: weddingInvite.token });
-      if (!claimed) return false;
+      if (!claimed) return 'used' as const;
       await tx.insert(weddingMember).values({ weddingId: inv.weddingId, userId: u.id, role: 'partner' }).onConflictDoNothing();
       if (!u.role) await tx.update(user).set({ role: 'couple' }).where(eq(user.id, u.id));
-      return true;
+      return 'ok' as const;
     });
-    if (!joined) return badRequest(reply, 'הקישור כבר נוצל. בקשו קישור חדש.');
+    if (joined === 'full') return conflict(reply, 'כבר יש שני בני זוג בחשבון החתונה הזו.');
+    if (joined === 'used') return badRequest(reply, 'הקישור כבר נוצל. בקשו קישור חדש.');
     return { weddingId: inv.weddingId };
   });
 

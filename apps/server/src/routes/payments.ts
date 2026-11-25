@@ -38,7 +38,7 @@ export async function applyPaymentResult(kind: PaymentKind, id: string, r: Payme
         set: { provider: payments.provider, token: r.card.token, last4: r.card.last4, brand: r.card.brand, expiry: r.card.expiry, updatedAt: new Date() },
       });
     // A lapsed paid plan renews as soon as a card is saved.
-    await renewIfDue(id, log).catch((err) => log.error({ err, id }, 'renew after card save failed'));
+    await renewIfDue(id, log, { newCard: true }).catch((err) => log.error({ err, id }, 'renew after card save failed'));
   }
 }
 

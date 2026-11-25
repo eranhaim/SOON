@@ -223,22 +223,29 @@ export async function weddingSiteRoutes(app: FastifyInstance) {
     if (!b) return;
     const status = b.attending === 'yes' ? 'confirmed' : b.attending === 'no' ? 'declined' : 'waiting';
     const digits = (b.phone ?? '').replace(/\D/g, '');
-    // Same phone wins; else the same name.
+    // A public form can't prove who is answering, so it may only update a guest it can safely
+    // identify: the same phone, or (no phone given anywhere) an unanswered guest with the same name.
+    // Anything else becomes a new row the couple can merge. Stored phone / notes are never replaced.
     const phoneMatch = digits.length >= 9 ? sql`regexp_replace(coalesce(phone, ''), '[^0-9]', '', 'g') like ${`%${digits.slice(-9)}`}` : sql`false`;
-    const [match] = await db.execute<{ id: string }>(sql`
-      select id from guest where wedding_id = ${row.w.id}
-        and (${phoneMatch} or lower(trim(name)) = lower(${b.name}))
+    const nameMatch = sql`(lower(trim(name)) = lower(${b.name}) and phone is null and responded_at is null)`;
+    const [match] = await db.execute<{ id: string; phone: string | null; notes: string | null }>(sql`
+      select id, phone, notes from guest where wedding_id = ${row.w.id}
+        and (${phoneMatch} or ${nameMatch})
       order by (${phoneMatch}) desc
       limit 1`).then((r) => r.rows);
     const values = {
       rsvp: status as 'confirmed' | 'declined' | 'waiting',
       partySize: b.attending === 'no' ? 1 : b.partySize,
       respondedAt: new Date(),
-      ...(b.phone ? { phone: b.phone } : {}),
-      ...(b.note ? { notes: b.note } : {}),
     };
-    if (match) await db.update(guest).set(values).where(eq(guest.id, match.id));
-    else await db.insert(guest).values({ weddingId: row.w.id, name: b.name, side: 'shared', ...values });
+    if (match) {
+      await db
+        .update(guest)
+        .set({ ...values, ...(!match.phone && b.phone ? { phone: b.phone } : {}), ...(!match.notes && b.note ? { notes: b.note } : {}) })
+        .where(eq(guest.id, match.id));
+    } else {
+      await db.insert(guest).values({ weddingId: row.w.id, name: b.name, side: 'shared', phone: b.phone ?? null, notes: b.note ?? null, ...values });
+    }
     return reply.status(201).send({ ok: true });
   });
 

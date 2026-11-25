@@ -3,7 +3,7 @@
  * A plan whose period ends without a successful charge falls back to Basic benefits
  * (effectivePlan in @soon/shared) until a payment renews it.
  */
-import { and, desc, eq, gte, isNotNull, lt, ne } from 'drizzle-orm';
+import { and, desc, eq, gte, isNotNull, lt, ne, or, sql } from 'drizzle-orm';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
@@ -41,18 +41,36 @@ async function billingOf(vendorId: string): Promise<VendorBillingDTO> {
   };
 }
 
-/** Charge one month of `plan` on the saved card and extend the period. Returns false when it failed. */
-async function chargePlan(vendorId: string, plan: PlanKey, log: FastifyBaseLogger): Promise<boolean> {
+/**
+ * Charge one month of `plan` on the saved card and extend the period.
+ * Returns 'paid', 'failed', or 'busy' when another charge for this vendor started moments ago
+ * (double tap, two tabs, the hourly job): a per-vendor lock makes "check + start" atomic.
+ */
+async function chargePlan(vendorId: string, plan: PlanKey, log: FastifyBaseLogger): Promise<'paid' | 'failed' | 'busy'> {
   const [card] = await db.select().from(vendorPaymentMethod).where(eq(vendorPaymentMethod.vendorId, vendorId));
-  if (!card) return false;
+  if (!card) return 'failed';
   const [v] = await db.select({ until: vendor.planActiveUntil, name: vendor.businessName }).from(vendor).where(eq(vendor.id, vendorId));
   const start = Math.max(Date.now(), v?.until?.getTime() ?? 0);
   const periodEnd = new Date(start + PERIOD_MS);
   const amount = priceAgorot(plan);
-  const [row] = await db
-    .insert(vendorCharge)
-    .values({ vendorId, plan, amountAgorot: amount, provider: payments.provider, periodEnd })
-    .returning({ id: vendorCharge.id });
+  const row = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`vendor-charge:${vendorId}`}))`);
+    const inFlight = await tx.$count(
+      vendorCharge,
+      and(
+        eq(vendorCharge.vendorId, vendorId),
+        or(eq(vendorCharge.status, 'pending'), eq(vendorCharge.status, 'paid')),
+        gte(vendorCharge.createdAt, new Date(Date.now() - 10 * 60_000)),
+      ),
+    );
+    if (inFlight) return null;
+    const [r] = await tx
+      .insert(vendorCharge)
+      .values({ vendorId, plan, amountAgorot: amount, provider: payments.provider, periodEnd })
+      .returning({ id: vendorCharge.id });
+    return r!;
+  });
+  if (!row) return 'busy';
   try {
     const { providerRef } = await chargeToken({
       token: card.token,
@@ -61,28 +79,35 @@ async function chargePlan(vendorId: string, plan: PlanKey, log: FastifyBaseLogge
       ref: refOf('charge', row!.id),
     });
     await db.transaction(async (tx) => {
-      await tx.update(vendorCharge).set({ status: 'paid', providerRef }).where(eq(vendorCharge.id, row!.id));
+      await tx.update(vendorCharge).set({ status: 'paid', providerRef }).where(eq(vendorCharge.id, row.id));
       await tx.update(vendor).set({ plan, planActiveUntil: periodEnd }).where(eq(vendor.id, vendorId));
     });
-    return true;
+    return 'paid';
   } catch (err) {
     log.warn({ err, vendorId }, 'plan charge failed');
     await db
       .update(vendorCharge)
       .set({ status: 'failed', error: err instanceof Error ? err.message.slice(0, 300) : 'failed' })
-      .where(eq(vendorCharge.id, row!.id));
-    return false;
+      .where(eq(vendorCharge.id, row.id));
+    return 'failed';
   }
 }
 
-/** Renews a paid plan whose period ends within a day, if a card is saved and no charge ran recently. */
-export async function renewIfDue(vendorId: string, log: FastifyBaseLogger): Promise<void> {
+/**
+ * Renews a paid plan whose period ends within a day, if a card is saved.
+ * The hourly job retries a failed card at most once a day; a newly saved card retries at once.
+ */
+export async function renewIfDue(vendorId: string, log: FastifyBaseLogger, opts: { newCard?: boolean } = {}): Promise<void> {
   const [v] = await db.select({ plan: vendor.plan, until: vendor.planActiveUntil }).from(vendor).where(eq(vendor.id, vendorId));
   if (!v || v.plan === 'basic') return;
   if (v.until && v.until.getTime() > Date.now() + 86_400_000) return;
-  // Don't retry more than once a day.
-  const recent = await db.$count(vendorCharge, and(eq(vendorCharge.vendorId, vendorId), gte(vendorCharge.createdAt, new Date(Date.now() - 86_400_000))));
-  if (recent) return;
+  if (!opts.newCard) {
+    const recentFailure = await db.$count(
+      vendorCharge,
+      and(eq(vendorCharge.vendorId, vendorId), eq(vendorCharge.status, 'failed'), gte(vendorCharge.createdAt, new Date(Date.now() - 86_400_000))),
+    );
+    if (recentFailure) return;
+  }
   await chargePlan(vendorId, v.plan as PlanKey, log);
 }
 
@@ -98,8 +123,13 @@ export function startRenewals(log: FastifyBaseLogger) {
     for (const d of due) await renewIfDue(d.id, log).catch((err) => log.error({ err, id: d.id }, 'renewal failed'));
   };
   const timer = setInterval(() => void run().catch((err) => log.error({ err }, 'renewal run failed')), 3600_000);
-  setTimeout(() => void run().catch(() => undefined), 30_000);
-  return () => clearInterval(timer);
+  const first = setTimeout(() => void run().catch((err) => log.error({ err }, 'renewal run failed')), 30_000);
+  timer.unref();
+  first.unref();
+  return () => {
+    clearInterval(timer);
+    clearTimeout(first);
+  };
 }
 
 export async function billingRoutes(app: FastifyInstance) {
@@ -150,8 +180,9 @@ export async function billingRoutes(app: FastifyInstance) {
     }
     const hasCard = await db.$count(vendorPaymentMethod, eq(vendorPaymentMethod.vendorId, v.id));
     if (!hasCard) return reply.status(402).send({ error: 'כדי לשדרג צריך לשמור כרטיס אשראי', needsCard: true });
-    const ok = await chargePlan(v.id, b.plan, request.log);
-    if (!ok) return reply.status(402).send({ error: 'החיוב נכשל. בדקו את הכרטיס או החליפו אותו.' });
+    const result = await chargePlan(v.id, b.plan, request.log);
+    if (result === 'busy') return reply.status(409).send({ error: 'חיוב כבר מתבצע. רעננו בעוד רגע.' });
+    if (result === 'failed') return reply.status(402).send({ error: 'החיוב נכשל. בדקו את הכרטיס או החליפו אותו.' });
     await db.update(vendor).set({ planSince: new Date() }).where(eq(vendor.id, v.id));
     return billingOf(v.id);
   });
