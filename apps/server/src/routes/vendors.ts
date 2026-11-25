@@ -4,9 +4,13 @@ import { and, asc, eq, inArray, max, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 
 import {
+  aboutDraftSchema,
   addMediaSchema,
   addMonths,
   APP_TIME_ZONE,
+  faqTemplateAnswerSchema,
+  faqTemplatesFor,
+  TRIAL_DAYS,
   todayIso,
   getVendorReadiness,
   reorderSchema,
@@ -14,6 +18,7 @@ import {
   vendorOnboardingSchema,
   vendorPackageInputSchema,
   vendorProfileUpdateSchema,
+  type PlanKey,
   type RegionSlug,
   type VendorOwnerDTO,
   type VendorPublicDTO,
@@ -24,6 +29,7 @@ import { category, review, vendor, vendorFaq, vendorMedia, vendorPackage, vendor
 import { badRequest, isCheckViolation } from '../http';
 import { getUser, parseBody, requireOwnVendor, requireVendorUser } from '../session';
 import { countProfileView } from '../services/stats';
+import { writeVendorAbout } from '../services/vendor-about';
 import { storage } from '../storage';
 import { vendorScope } from './uploads';
 
@@ -62,6 +68,9 @@ export async function loadVendor(row: VendorRow): Promise<VendorOwnerDTO> {
     submittedAt: row.submittedAt?.toISOString() ?? null,
     reviewedAt: row.reviewedAt?.toISOString() ?? null,
     businessName: row.businessName,
+    contactFirstName: row.contactFirstName,
+    plan: row.plan as PlanKey,
+    planActiveUntil: row.planActiveUntil?.toISOString() ?? null,
     categorySlug: row.categorySlug,
     categoryLabel: cat[0]?.label ?? row.categorySlug,
     about: row.about,
@@ -87,12 +96,23 @@ export async function loadVendor(row: VendorRow): Promise<VendorOwnerDTO> {
       includes: p.includes,
       sortOrder: p.sortOrder,
     })),
-    faqs: faqs.map((f) => ({ id: f.id, question: f.question, answer: f.answer, sortOrder: f.sortOrder })),
+    faqs: faqs.map((f) => ({ id: f.id, question: f.question, answer: f.answer, templateKey: f.templateKey, sortOrder: f.sortOrder })),
   };
 }
 
 function toPublic(v: VendorOwnerDTO): VendorPublicDTO {
-  const { status: _s, statusReason: _r, submittedAt: _sa, reviewedAt: _ra, phone: _p, email: _e, ...pub } = v;
+  const {
+    status: _s,
+    statusReason: _r,
+    submittedAt: _sa,
+    reviewedAt: _ra,
+    phone: _p,
+    email: _e,
+    contactFirstName: _f,
+    plan: _pl,
+    planActiveUntil: _pa,
+    ...pub
+  } = v;
   return pub;
 }
 
@@ -150,6 +170,10 @@ export async function vendorRoutes(app: FastifyInstance) {
           .values({
             ownerUserId: user.id,
             businessName: body.businessName,
+            contactFirstName: body.firstName,
+            plan: body.plan,
+            planSince: new Date(),
+            planActiveUntil: body.plan === 'basic' ? null : new Date(Date.now() + TRIAL_DAYS * 86_400_000),
             slug: randomSlug(),
             categorySlug: body.category,
             status: 'draft',
@@ -170,6 +194,19 @@ export async function vendorRoutes(app: FastifyInstance) {
     return reply.status(201).send(await loadVendor(created));
   });
 
+  /** Writes a paragraph for the About text from a few words (AI, or a template without a key). */
+  app.post('/api/vendors/about-draft', async (request, reply) => {
+    const user = await requireVendorUser(request, reply);
+    if (!user) return;
+    const body = await parseBody(aboutDraftSchema, request.body, reply);
+    if (!body) return;
+    const [cat] = await db.select({ label: category.labelHe }).from(category).where(eq(category.slug, body.category)).limit(1);
+    return writeVendorAbout(
+      { businessName: body.businessName, categoryLabel: cat?.label ?? body.category, regions: body.regions, notes: body.notes },
+      request.log,
+    );
+  });
+
   /** Partial update of the storefront. */
   app.patch('/api/vendors/me', async (request, reply) => {
     const ctx = await requireOwnVendor(request, reply);
@@ -185,6 +222,7 @@ export async function vendorRoutes(app: FastifyInstance) {
 
     const set: Partial<typeof vendor.$inferInsert> = {};
     if (body.businessName !== undefined) set.businessName = body.businessName;
+    if (body.contactFirstName !== undefined) set.contactFirstName = body.contactFirstName || null;
     if (body.category !== undefined) set.categorySlug = body.category;
     if (body.about !== undefined) set.about = body.about || null;
     if (body.phone !== undefined) set.phone = body.phone;
@@ -303,7 +341,36 @@ export async function vendorRoutes(app: FastifyInstance) {
     return reloadOwn(ctx.vendor.id);
   });
 
-  // ----- FAQ -----
+  // ----- FAQ: ready questions with multiple-choice answers -----
+  app.put<{ Params: { key: string } }>('/api/vendors/me/faqs/template/:key', async (request, reply) => {
+    const ctx = await requireOwnVendor(request, reply);
+    if (!ctx) return;
+    const tpl = faqTemplatesFor(ctx.vendor.categorySlug).find((t) => t.key === request.params.key);
+    if (!tpl) return reply.status(404).send({ error: 'Unknown question' });
+    const body = await parseBody(faqTemplateAnswerSchema, request.body, reply);
+    if (!body) return;
+    if (!tpl.options.includes(body.answer)) return badRequest(reply, 'תשובה לא מהרשימה', 'answer');
+    await db
+      .insert(vendorFaq)
+      .values({
+        vendorId: ctx.vendor.id,
+        question: tpl.question,
+        answer: body.answer,
+        templateKey: tpl.key,
+        sortOrder: await nextSortOrder(vendorFaq, ctx.vendor.id),
+      })
+      .onConflictDoUpdate({ target: [vendorFaq.vendorId, vendorFaq.templateKey], set: { answer: body.answer, question: tpl.question } });
+    return reloadOwn(ctx.vendor.id);
+  });
+
+  app.delete<{ Params: { key: string } }>('/api/vendors/me/faqs/template/:key', async (request, reply) => {
+    const ctx = await requireOwnVendor(request, reply);
+    if (!ctx) return;
+    await db.delete(vendorFaq).where(and(eq(vendorFaq.vendorId, ctx.vendor.id), eq(vendorFaq.templateKey, request.params.key)));
+    return reloadOwn(ctx.vendor.id);
+  });
+
+  // ----- FAQ: free text -----
   app.post('/api/vendors/me/faqs', async (request, reply) => {
     const ctx = await requireOwnVendor(request, reply);
     if (!ctx) return;

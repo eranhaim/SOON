@@ -11,9 +11,14 @@ import {
 
 import { db, type DB } from '../db';
 import { category, user, wedding, weddingCategory, weddingMember } from '../db/schema';
-import { conflict } from '../http';
+import { badRequest, conflict } from '../http';
 import { findWeddingForUser, parseBody, requireCoupleUser, requireWedding, type WeddingRow } from '../session';
 import { syncChecklist } from '../services/checklist';
+import { storage } from '../storage';
+import { weddingScope } from './uploads';
+
+/** Curated home backgrounds the app offers (Unsplash). */
+const CURATED_PHOTO_BASE = 'https://images.unsplash.com/';
 
 type Tx = Parameters<Parameters<DB['transaction']>[0]>[0];
 
@@ -101,7 +106,15 @@ export async function weddingRoutes(app: FastifyInstance) {
     if (body.region !== undefined) set.region = body.region;
     if (body.venueName !== undefined) set.venueName = body.venueName || null;
     if (body.budgetTotal !== undefined) set.budgetTotalAgorot = body.budgetTotal;
-    if (body.coverImageUrl !== undefined) set.coverImageUrl = body.coverImageUrl;
+    if (body.coverImageUrl !== undefined) {
+      // Only our curated photos or the couple's own upload (under their wedding folder).
+      const url = body.coverImageUrl;
+      const coverScope = `${weddingScope(ctx.wedding.id)}/cover`;
+      if (url && !url.startsWith(CURATED_PHOTO_BASE) && !storage.keyIfOwned(url, coverScope)) {
+        return badRequest(reply, 'תמונה לא חוקית', 'coverImageUrl');
+      }
+      set.coverImageUrl = url;
+    }
 
     const updated = await db.transaction(async (tx) => {
       const [w] = Object.keys(set).length
@@ -113,10 +126,17 @@ export async function weddingRoutes(app: FastifyInstance) {
         const needed = body.neededCategories ?? current.filter((c) => c.status === 'needed').map((c) => c.categorySlug);
         await setCategories(tx, ctx.wedding.id, closed, needed);
       }
+      if (body.phone !== undefined) await tx.update(user).set({ phone: body.phone }).where(eq(user.id, ctx.user.id));
       // A new wedding date re-plans the auto-generated, still-open checklist items.
       if (body.weddingDate !== undefined) await syncChecklist(tx, w!);
       return w!;
     });
+
+    // Replaced an uploaded cover: delete the old file (best effort).
+    const oldCover = ctx.wedding.coverImageUrl;
+    if (body.coverImageUrl !== undefined && oldCover && oldCover !== body.coverImageUrl) {
+      void storage.remove(oldCover, `${weddingScope(ctx.wedding.id)}/cover`);
+    }
 
     return loadWedding(updated);
   });

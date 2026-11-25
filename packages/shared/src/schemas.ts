@@ -38,15 +38,27 @@ const priceRangeMsg = { message: 'מחיר ההתחלה גבוה ממחיר הס
 export const vendorOnboardingSchema = z
   .object({
     businessName: z.string().trim().min(2).max(100),
+    /** First name of the person behind the business. */
+    firstName: z.string().trim().min(2, 'נא לכתוב שם פרטי').max(40),
     category: categorySlug,
     phone,
     regions: z.array(region).min(1),
+    /** Plan chosen at sign-up; it is free for the first month. */
+    plan: z.enum(['basic', 'pro', 'premium']).default('basic'),
     about: z.string().trim().max(2000).optional(),
     priceFrom: agorot.optional(),
     priceTo: agorot.optional(),
   })
   .refine(priceRangeOk, priceRangeMsg);
 export type VendorOnboarding = z.infer<typeof vendorOnboardingSchema>;
+
+/** "Help me write" the About text (works before the business exists, in sign-up). */
+export const aboutDraftSchema = z.object({
+  businessName: z.string().trim().min(2).max(100),
+  category: categorySlug,
+  regions: z.array(region).max(20).default([]),
+  notes: z.string().trim().max(1500).default(''),
+});
 
 const optionalText = (max: number) => z.string().trim().max(max).nullable().optional();
 const optionalUrl = z
@@ -59,6 +71,7 @@ const optionalUrl = z
 export const vendorProfileUpdateSchema = z
   .object({
     businessName: z.string().trim().min(2).max(100).optional(),
+    contactFirstName: optionalText(40),
     category: categorySlug.optional(),
     about: optionalText(4000),
     phone: phone.nullable().optional(),
@@ -104,7 +117,16 @@ export const adminRejectSchema = z.object({ reason: z.string().trim().min(5, 'נ
 export const adminSuspendSchema = z.object({ reason: z.string().trim().min(5, 'נא לפרט סיבה').max(1000) });
 
 // ---------- uploads ----------
-export const UPLOAD_PURPOSES = ['vendor-cover', 'vendor-logo', 'vendor-gallery', 'vendor-video', 'vendor-receipt'] as const;
+export const UPLOAD_PURPOSES = [
+  'vendor-cover',
+  'vendor-logo',
+  'vendor-gallery',
+  'vendor-video',
+  'vendor-receipt',
+  /** Couple uploads (stored under the wedding). */
+  'wedding-cover',
+  'wedding-image',
+] as const;
 export type UploadPurpose = (typeof UPLOAD_PURPOSES)[number];
 export const IMAGE_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 export const VIDEO_CONTENT_TYPES = ['video/mp4', 'video/quicktime'] as const;
@@ -118,6 +140,8 @@ export const UPLOAD_RULES: Record<UploadPurpose, { types: readonly string[]; max
   'vendor-gallery': { types: IMAGE_CONTENT_TYPES, maxBytes: MAX_IMAGE_BYTES },
   'vendor-video': { types: VIDEO_CONTENT_TYPES, maxBytes: MAX_VIDEO_BYTES },
   'vendor-receipt': { types: [...IMAGE_CONTENT_TYPES, 'application/pdf'], maxBytes: MAX_IMAGE_BYTES },
+  'wedding-cover': { types: IMAGE_CONTENT_TYPES, maxBytes: MAX_IMAGE_BYTES },
+  'wedding-image': { types: IMAGE_CONTENT_TYPES, maxBytes: MAX_IMAGE_BYTES },
 };
 
 export const uploadRequestSchema = z
@@ -162,6 +186,8 @@ export const weddingUpdateSchema = z.object({
   budgetTotal: agorot.nullable().optional(),
   /** Home screen background photo (https URL). */
   coverImageUrl: z.url().max(1000).nullable().optional(),
+  /** The signed-in partner's own phone (vendors see it in chats for WhatsApp). */
+  phone: phone.nullable().optional(),
   closedCategories: z.array(categorySlug).optional(),
   neededCategories: z.array(categorySlug).optional(),
 });

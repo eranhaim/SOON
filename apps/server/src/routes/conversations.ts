@@ -83,6 +83,25 @@ async function listConversations(s: Side, userId: string, where?: ReturnType<typ
   }));
 }
 
+/**
+ * Phone of the other side, for the WhatsApp button inside an existing chat.
+ * Couple sees the vendor's business phone; vendor sees the lead's phone, else a partner's.
+ */
+async function otherSidePhone(side: Side['side'], item: ConversationListItem): Promise<string | null> {
+  if (side === 'couple') {
+    const [v] = await db.select({ phone: vendor.phone }).from(vendor).where(eq(vendor.id, item.vendor.id));
+    return v?.phone ?? null;
+  }
+  const rows = await db.execute<{ phone: string | null }>(sql`
+    select coalesce(
+      (select client_phone from lead where id = ${item.leadId}::uuid),
+      (select u.phone from wedding_member wm join "user" u on u.id = wm.user_id
+        where wm.wedding_id = ${item.couple.weddingId}::uuid and u.phone is not null
+        order by wm.created_at limit 1)
+    ) as phone`);
+  return rows.rows[0]?.phone ?? null;
+}
+
 /** Total unread messages for the viewer (tab badges). */
 export async function unreadTotal(s: Side, userId: string) {
   const readAt = s.side === 'vendor' ? conversation.vendorReadAt : conversation.weddingReadAt;
@@ -248,7 +267,7 @@ export async function conversationRoutes(app: FastifyInstance) {
     if (!item) return notFound(reply);
 
     const now = new Date();
-    const [[c], msgs, [ctxRow]] = await Promise.all([
+    const [[c], msgs, [ctxRow], phone] = await Promise.all([
       db
         .update(conversation)
         .set(s.side === 'vendor' ? { vendorReadAt: now } : { weddingReadAt: now })
@@ -267,6 +286,7 @@ export async function conversationRoutes(app: FastifyInstance) {
         .from(wedding)
         .leftJoin(lead, eq(lead.id, sql`${item.leadId}::uuid`))
         .where(eq(wedding.id, item.couple.weddingId)),
+      otherSidePhone(s.side, item),
     ]);
 
     const detail: ConversationDetail = {
@@ -287,6 +307,7 @@ export async function conversationRoutes(app: FastifyInstance) {
         quotedPriceAgorot: ctxRow?.quoted ?? null,
       },
       viewerSide: s.side,
+      otherPhone: phone,
     };
     return detail;
   });

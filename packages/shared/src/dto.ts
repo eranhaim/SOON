@@ -23,6 +23,8 @@ export type VendorFaqDTO = {
   id: string;
   question: string;
   answer: string;
+  /** FAQ_TEMPLATES key when the answer was picked from ready choices. */
+  templateKey: string | null;
   sortOrder: number;
 };
 
@@ -52,6 +54,11 @@ export type VendorPublicDTO = {
 
 /** The owner's view of their own storefront. */
 export type VendorOwnerDTO = VendorPublicDTO & {
+  /** First name of the person behind the business (greeting). */
+  contactFirstName: string | null;
+  /** Chosen plan and until when it is active (trial or paid). */
+  plan: import('./business').PlanKey;
+  planActiveUntil: string | null;
   status: VendorStatus;
   /** Rejection / suspension reason shown to the vendor. */
   statusReason: string | null;
@@ -254,6 +261,8 @@ export type ConversationDetail = {
     quotedPriceAgorot: number | null;
   };
   viewerSide: 'vendor' | 'couple';
+  /** The other side's phone (WhatsApp button). Only shared once a conversation exists. */
+  otherPhone: string | null;
 };
 
 // ---------- CRM (spec §10, §13) ----------

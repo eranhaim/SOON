@@ -117,6 +117,9 @@ export default function Explore() {
   const total = q.data?.pages[0]?.total;
 
   const activeCount = [filters.region, filters.priceMin, filters.priceMax].filter(Boolean).length;
+  // Category pre-search: typed text that matches category names offers those categories first.
+  const term = text.trim();
+  const catMatches = term.length >= 2 ? VENDOR_CATEGORIES.filter((c) => c.he.includes(term) && c.slug !== filters.category).slice(0, 5) : [];
   const dateLabel = filters.date ? formatDayDots(filters.date) : null;
 
   const header = (
@@ -138,7 +141,36 @@ export default function Explore() {
           returnKeyType="search"
           accessibilityLabel="חיפוש"
         />
+        {text ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="ניקוי החיפוש" onPress={() => setText('')} hitSlop={8}>
+            <Feather name="x" size={16} color={colors.inkMuted} />
+          </Pressable>
+        ) : null}
       </View>
+      {catMatches.length ? (
+        <View style={styles.suggest}>
+          {catMatches.map((c) => (
+            <PressableScale
+              key={c.slug}
+              accessibilityRole="button"
+              scaleTo={0.98}
+              onPress={() => {
+                setText('');
+                setFilters((f) => ({ ...f, category: c.slug, q: '' }));
+              }}
+              style={styles.suggestRow}>
+              <Feather name="grid" size={14} color={colors.gold} />
+              <Text variant="bodySmall" style={{ flex: 1 }}>
+                {`כל הספקים בתחום `}
+                <Text variant="bodySmall" style={{ fontFamily: fonts.bodyMedium }}>
+                  {c.he}
+                </Text>
+              </Text>
+              <Feather name="chevron-left" size={16} color={colors.stoneDeep} />
+            </PressableScale>
+          ))}
+        </View>
+      ) : null}
       <FlatList
         horizontal
         data={[{ slug: undefined, he: 'הכל' }, ...VENDOR_CATEGORIES]}
@@ -308,6 +340,16 @@ const styles = StyleSheet.create({
     ...shadow.sm,
   },
   searchInput: { flex: 1, fontFamily: fonts.body, fontSize: 16, color: colors.ink, height: '100%' },
+  suggest: { marginTop: -space.xs, borderRadius: radius.md, backgroundColor: colors.surface, overflow: 'hidden', ...shadow.md },
+  suggestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingHorizontal: space.md,
+    paddingVertical: 12,
+    borderBottomWidth: hairline,
+    borderBottomColor: colors.line,
+  },
   toolRow: { flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' },
   tool: {
     flexDirection: 'row',

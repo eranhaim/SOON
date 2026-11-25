@@ -4,10 +4,10 @@
  */
 import { and, asc, desc, eq, sql, type SQL } from 'drizzle-orm';
 
-import type { DayAvailability, RegionSlug, VendorCardDTO, VendorSearch } from '@soon/shared';
+import { REGIONS, type DayAvailability, type RegionSlug, type VendorCardDTO, type VendorSearch } from '@soon/shared';
 
 import { db } from '../db';
-import { category, savedVendor, vendor, vendorRegion } from '../db/schema';
+import { category, savedVendor, vendor, vendorFaq, vendorPackage, vendorRegion } from '../db/schema';
 import { ratingSummarySql } from './ratings';
 import { vendorAvailabilityOn, vendorBusyOn } from './availability';
 
@@ -55,7 +55,8 @@ export async function queryVendorCards(q: CardQuery): Promise<{ items: VendorCar
       logoUrl: vendor.logoUrl,
       priceFromAgorot: vendor.priceFromAgorot,
       priceToAgorot: vendor.priceToAgorot,
-      isFeatured: vendor.isFeatured,
+      // "Recommended": set by an admin, or an active Premium plan.
+      isFeatured: sql<boolean>`(${vendor.isFeatured} or ${planRankSql} = 2)`,
       regions: regionsSql,
       saveCount: saveCountSql,
       ratingAvg: rating.avg,
@@ -92,8 +93,10 @@ function sortClause(sort: VendorSearch['sort'], ratingAvg: SQL): SQL[] {
       return [sql`${ratingAvg} desc nulls last`, sql`${saveCountSql} desc`, asc(vendor.id)];
     case 'relevance':
     default:
-      // Featured first (spec §17: clear ordering policy), then completeness and popularity.
+      // Clear ordering policy (spec §17): active Premium, then active Pro, then admin-featured,
+      // then completeness and popularity.
       return [
+        sql`${planRankSql} desc`,
         desc(vendor.isFeatured),
         sql`(${vendor.coverUrl} is not null) desc`,
         sql`${saveCountSql} desc`,
@@ -102,9 +105,13 @@ function sortClause(sort: VendorSearch['sort'], ratingAvg: SQL): SQL[] {
   }
 }
 
+/** 2 = active Premium, 1 = active Pro, 0 = Basic or lapsed (plan benefits in search). */
+const planRankSql = sql<number>`(case when ${vendor.planActiveUntil} > now()
+  then case ${vendor.plan} when 'premium' then 2 when 'pro' then 1 else 0 end else 0 end)`;
+
 /** Filters for the search endpoint (spec §5). */
 export function searchFilters(s: VendorSearch): (SQL | undefined)[] {
-  const like = s.q ? `%${s.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null;
+  const words = (s.q ?? '').split(/\s+/).filter((w) => w.length > 0).slice(0, 6);
   return [
     s.category ? eq(vendor.categorySlug, s.category) : undefined,
     s.region
@@ -117,9 +124,39 @@ export function searchFilters(s: VendorSearch): (SQL | undefined)[] {
     s.priceMin != null
       ? sql`coalesce(${vendor.priceToAgorot}, ${vendor.priceFromAgorot}) >= ${s.priceMin}`
       : undefined,
-    like
-      ? sql`(${vendor.businessName} ilike ${like} or ${vendor.about} ilike ${like} or ${category.labelHe} ilike ${like})`
-      : undefined,
+    ...words.map((w) => matchesWordSql(w)),
     s.date && s.onlyAvailable ? sql`not ${vendorBusyOn(s.date)}` : undefined,
   ];
+}
+
+const REGION_LABELS: [string, string][] = REGIONS.map((r) => [r.slug, r.he]);
+
+/** Escapes LIKE wildcards in user input. */
+const likePattern = (word: string) => `%${word.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+
+/**
+ * One search word against every vendor field couples might type: name, category, about,
+ * packages (name, description, what's included), FAQ, service regions, cancellation policy.
+ */
+function matchesWordSql(word: string): SQL {
+  const like = likePattern(word);
+  const regionSlugs = REGION_LABELS.filter(([, he]) => he.includes(word)).map(([slug]) => slug);
+  const regionMatch = regionSlugs.length
+    ? sql`or exists (select 1 from ${vendorRegion} r where r.vendor_id = ${vendor.id}
+        and r.region in (${sql.join(
+          regionSlugs.map((x) => sql`${x}`),
+          sql`, `,
+        )}))`
+    : sql``;
+  return sql`(
+    ${vendor.businessName} ilike ${like}
+    or ${category.labelHe} ilike ${like}
+    or ${vendor.about} ilike ${like}
+    or ${vendor.cancellationPolicy} ilike ${like}
+    or exists (select 1 from ${vendorPackage} p where p.vendor_id = ${vendor.id}
+      and (p.name ilike ${like} or p.description ilike ${like} or array_to_string(p.includes, ' ') ilike ${like}))
+    or exists (select 1 from ${vendorFaq} f where f.vendor_id = ${vendor.id}
+      and (f.question ilike ${like} or f.answer ilike ${like}))
+    ${regionMatch}
+  )`;
 }

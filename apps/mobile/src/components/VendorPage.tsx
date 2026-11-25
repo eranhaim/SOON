@@ -9,7 +9,7 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { useState, type ReactNode } from 'react';
 import { Linking, Modal, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { formatAgorot, formatPriceRange, regionLabel, type ReviewDTO, type VendorMediaDTO, type VendorPublicDTO } from '@soon/shared';
+import { formatAgorot, formatPriceOrAsk, formatRegions, type ReviewDTO, type VendorMediaDTO, type VendorPublicDTO } from '@soon/shared';
 
 import { formatDate } from '@/lib/dates';
 import { keys, useApiQuery } from '@/lib/query';
@@ -41,7 +41,7 @@ export function VendorPage({ vendor, onAction, saved, onEdit, onAddMedia, mediaS
   // Measure the real container width (the page can sit in a narrow column, e.g. admin review).
   const [measured, setMeasured] = useState<number | null>(null);
   const pageWidth = measured ?? Math.min(window.width, 720);
-  const priceRange = formatPriceRange(vendor.priceFromAgorot, vendor.priceToAgorot);
+  const priceRange = formatPriceOrAsk(vendor.priceFromAgorot, vendor.priceToAgorot);
   const reviews = useApiQuery<ReviewDTO[]>(keys.reviews(vendor.slug), `/api/vendors/${encodeURIComponent(vendor.slug)}/reviews`);
   const owner = Boolean(onEdit);
 
@@ -87,7 +87,7 @@ export function VendorPage({ vendor, onAction, saved, onEdit, onAddMedia, mediaS
         </View>
 
         <View style={styles.metaRow}>
-          {vendor.regions.length ? <Meta icon="map-pin" text={vendor.regions.map(regionLabel).join(' · ')} /> : null}
+          {vendor.regions.length ? <Meta icon="map-pin" text={formatRegions(vendor.regions)} /> : null}
           {priceRange ? <Meta icon="tag" text={priceRange} /> : null}
           <Meta
             icon="star"

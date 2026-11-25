@@ -227,6 +227,15 @@ export const PLANS = [
 ] as const;
 export type PlanKey = (typeof PLANS)[number]['key'];
 
+/** A new vendor gets the plan they choose free for this many days. */
+export const TRIAL_DAYS = 30;
+
+/** The plan whose benefits apply now: the chosen plan while it is paid / in trial, else Basic. */
+export function effectivePlan(plan: string, activeUntil: string | Date | null): PlanKey {
+  if (plan === 'basic' || !activeUntil) return 'basic';
+  return new Date(activeUntil).getTime() > Date.now() ? (plan as PlanKey) : 'basic';
+}
+
 // ---------- vendor settings ----------
 export const NOTIFICATION_KINDS = [
   { key: 'newInquiry', label: 'פנייה חדשה מזוג' },

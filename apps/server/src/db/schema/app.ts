@@ -25,6 +25,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -131,6 +132,8 @@ export const vendor = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     businessName: text('business_name').notNull(),
+    /** First name of the person behind the business (greeting, CRM, admin). */
+    contactFirstName: text('contact_first_name'),
     slug: text('slug').notNull().unique(),
     categorySlug: text('category_slug')
       .notNull()
@@ -156,6 +159,11 @@ export const vendor = pgTable(
     /** Subscription plan (PLANS in @soon/shared). Billing is not connected yet. */
     plan: text('plan').notNull().default('basic'),
     planSince: timestamp('plan_since', { withTimezone: true }),
+    /**
+     * The chosen plan is active until this moment (free first month, then paid periods).
+     * After it passes the vendor gets Basic benefits until a payment renews it.
+     */
+    planActiveUntil: timestamp('plan_active_until', { withTimezone: true }),
     /** Partial VendorSettings; missing keys fall back to DEFAULT_VENDOR_SETTINGS. */
     settings: jsonb('settings').$type<Partial<VendorSettings>>().notNull().default({}),
     /** Printed on client documents (עוסק מורשה / ח.פ, address). */
@@ -228,9 +236,11 @@ export const vendorFaq = pgTable(
       .references(() => vendor.id, { onDelete: 'cascade' }),
     question: text('question').notNull(),
     answer: text('answer').notNull(),
+    /** FAQ_TEMPLATES key when the answer was picked from ready choices; null for free text. */
+    templateKey: text('template_key'),
     sortOrder: integer('sort_order').notNull().default(0),
   },
-  (t) => [index('vendor_faq_vendor_idx').on(t.vendorId)],
+  (t) => [index('vendor_faq_vendor_idx').on(t.vendorId), unique('vendor_faq_template_uq').on(t.vendorId, t.templateKey)],
 );
 
 // ---------- leads / CRM (spec §10) ----------
@@ -545,7 +555,11 @@ export const budgetItem = pgTable(
     notes: text('notes'),
     ...timestamps,
   },
-  (t) => [index('budget_item_wedding_idx').on(t.weddingId)],
+  (t) => [
+    index('budget_item_wedding_idx').on(t.weddingId),
+    // One line per category; "other" may repeat.
+    uniqueIndex('budget_item_wedding_category_uq').on(t.weddingId, t.category).where(sql`${t.category} <> 'other'`),
+  ],
 );
 
 /** Scheduled / paid payments for a budget line (spec §7.2: due dates and reminders). */

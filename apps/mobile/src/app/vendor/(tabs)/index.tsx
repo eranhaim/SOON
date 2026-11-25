@@ -38,7 +38,7 @@ export default function VendorDashboard() {
           <Text variant="caption" color={colors.inkMuted}>
             {formatToday()}
           </Text>
-          <Text variant="h1">{`${greeting()},`}</Text>
+          <Text variant="h1">{vendor.contactFirstName ? `${greeting()}, ${vendor.contactFirstName}` : `${greeting()},`}</Text>
           <Text variant="h1" color={colors.accent} style={{ marginTop: -6 }}>
             {vendor.businessName}
           </Text>

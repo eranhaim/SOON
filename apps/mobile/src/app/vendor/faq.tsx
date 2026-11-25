@@ -1,28 +1,47 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { vendorFaqInputSchema, type VendorFaqDTO } from '@soon/shared';
+import { faqTemplatesFor, vendorFaqInputSchema, type VendorFaqDTO } from '@soon/shared';
 
 import { Button } from '@/components/Button';
+import { Reveal } from '@/components/motion';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
-import { Card, IconButton } from '@/components/ui';
+import { Card, Chip, ChipGroup, IconButton, SectionTitle } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
 import { confirm, notify } from '@/lib/confirm';
 import { useOwnVendor } from '@/lib/vendor-context';
-import { colors, space } from '@/theme/tokens';
+import { colors, fonts, space } from '@/theme/tokens';
 
 type Draft = { id?: string; question: string; answer: string };
 
-const SUGGESTIONS = ['האם אתם נוסעים לכל הארץ?', 'כמה זמן מראש כדאי להזמין?', 'מה כלול במחיר?', 'האם יש תוספת על נסיעות?'];
-
-/** FAQ (spec §5: travel, national coverage, recommended booking time…). */
+/**
+ * FAQ (spec §5). Ready questions are answered with one tap (multiple choice);
+ * vendors can still add their own questions with free text.
+ */
 export default function Faq() {
   const { vendor, mutate } = useOwnVendor();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string>();
+
+  const templates = faqTemplatesFor(vendor.categorySlug);
+  const answered = new Map(vendor.faqs.filter((f) => f.templateKey).map((f) => [f.templateKey!, f.answer]));
+  const custom = vendor.faqs.filter((f) => !f.templateKey);
+
+  async function pick(key: string, option: string) {
+    setSaving(key);
+    try {
+      if (answered.get(key) === option) await mutate(`/api/vendors/me/faqs/template/${key}`, { method: 'DELETE' });
+      else await mutate(`/api/vendors/me/faqs/template/${key}`, { method: 'PUT', json: { answer: option } });
+    } catch (err) {
+      notify('השמירה נכשלה', errorMessage(err));
+    } finally {
+      setSaving(null);
+    }
+  }
 
   async function save() {
     if (!draft) return;
@@ -51,10 +70,35 @@ export default function Faq() {
     }
   }
 
-  const unused = SUGGESTIONS.filter((s) => !vendor.faqs.some((f) => f.question === s));
-
   return (
     <Screen title="שאלות נפוצות" back backTo="/vendor/business">
+      <Text variant="bodySmall" color={colors.inkSoft}>
+        {`בחרו תשובה אחת לכל שאלה. הזוגות רואים את התשובות בעמוד העסק שלכם. עניתם על ${answered.size} מתוך ${templates.length}.`}
+      </Text>
+
+      {templates.map((t, i) => (
+        <Reveal key={t.key} index={Math.min(i, 8)}>
+          <Card style={{ gap: space.sm }}>
+            <View style={styles.qRow}>
+              <Text variant="body" style={{ flex: 1, fontFamily: fonts.bodyMedium }}>
+                {t.question}
+              </Text>
+              {saving === t.key ? (
+                <Text variant="caption" color={colors.inkMuted}>
+                  שומרים…
+                </Text>
+              ) : null}
+            </View>
+            <ChipGroup>
+              {t.options.map((o) => (
+                <Chip key={o} label={o} selected={answered.get(t.key) === o} onPress={() => pick(t.key, o)} />
+              ))}
+            </ChipGroup>
+          </Card>
+        </Reveal>
+      ))}
+
+      <SectionTitle>שאלות משלכם</SectionTitle>
       {draft ? (
         <Card tone="muted">
           <TextField label="שאלה" value={draft.question} onChangeText={(question) => setDraft({ ...draft, question })} autoFocus={!draft.question} />
@@ -64,7 +108,6 @@ export default function Faq() {
             style={{ minHeight: 100, textAlignVertical: 'top' }}
             value={draft.answer}
             onChangeText={(answer) => setDraft({ ...draft, answer })}
-            autoFocus={Boolean(draft.question) && !draft.answer}
           />
           {error ? (
             <Text variant="bodySmall" color={colors.danger}>
@@ -77,25 +120,13 @@ export default function Faq() {
           </View>
         </Card>
       ) : (
-        <>
-          <Button variant="outline" label="+ הוספת שאלה" onPress={() => setDraft({ question: '', answer: '' })} />
-          {unused.length ? (
-            <View style={{ gap: space.xs }}>
-              <Text variant="caption" color={colors.inkMuted}>
-                שאלות שזוגות שואלים הרבה:
-              </Text>
-              {unused.map((q) => (
-                <Button key={q} variant="ghost" label={`+ ${q}`} onPress={() => setDraft({ question: q, answer: '' })} style={{ alignItems: 'flex-start', minHeight: 36 }} />
-              ))}
-            </View>
-          ) : null}
-        </>
+        <Button variant="outline" label="+ הוספת שאלה משלכם" onPress={() => setDraft({ question: '', answer: '' })} />
       )}
 
-      {vendor.faqs.map((f) => (
+      {custom.map((f) => (
         <Card key={f.id}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.sm }}>
-            <Text variant="body" style={{ flex: 1, fontFamily: 'Heebo_500Medium' }}>
+          <View style={styles.qRow}>
+            <Text variant="body" style={{ flex: 1, fontFamily: fonts.bodyMedium }}>
               {f.question}
             </Text>
             <IconButton
@@ -116,3 +147,7 @@ export default function Faq() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  qRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
+});

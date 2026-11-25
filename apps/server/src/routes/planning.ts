@@ -29,7 +29,7 @@ import {
 
 import { db } from '../db';
 import { budgetItem, guest, task, vendor, wedding, weddingEvent, weddingPayment } from '../db/schema';
-import { badRequest, isCheckViolation, isUuid, notFound } from '../http';
+import { badRequest, conflict, isCheckViolation, isUniqueViolation, isUuid, notFound } from '../http';
 import { parseBody, requireWedding } from '../session';
 
 type TaskRow = typeof task.$inferSelect;
@@ -97,6 +97,8 @@ type CollectionOpts<C extends z.ZodType, U extends z.ZodType> = {
   ): Promise<Record<string, unknown> | null> | Record<string, unknown> | null;
   /** The response after any change (usually the whole collection). */
   respond: (weddingId: string) => Promise<unknown>;
+  /** Message when a unique rule is broken (409). */
+  uniqueMessage?: string;
 };
 
 /** POST, PATCH /:id and DELETE /:id for a table keyed by (id, wedding_id). */
@@ -108,6 +110,7 @@ function weddingCollection<C extends z.ZodType, U extends z.ZodType>(app: Fastif
       return await run();
     } catch (err) {
       if (isCheckViolation(err)) return badRequest(reply, 'ערך לא תקין');
+      if (isUniqueViolation(err)) return conflict(reply, o.uniqueMessage ?? 'הפריט כבר קיים');
       throw err;
     }
   }
@@ -300,6 +303,7 @@ export async function planningRoutes(app: FastifyInstance) {
     updateSchema: budgetItemUpdateSchema,
     max: 200,
     respond: respondBudget,
+    uniqueMessage: 'כבר יש שורת תקציב לקטגוריה הזו. ערכו את השורה הקיימת.',
     toRow: async (b: Partial<z.infer<typeof budgetItemUpdateSchema>>, { reply }) => {
       if (!(await vendorExists(b.vendorId))) return (await badRequest(reply, 'Unknown vendor', 'vendorId'), null);
       return pick(b, {

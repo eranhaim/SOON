@@ -1,4 +1,5 @@
 import { AppTabs, type TabDef } from '@/components/TabBar';
+import { useUnreadCount } from '@/lib/unread';
 
 /**
  * Vendor navigation (spec §2): Dashboard · Calendar · Clients · Messages · Business.
@@ -13,5 +14,6 @@ const TABS: TabDef[] = [
 ];
 
 export default function VendorTabs() {
-  return <AppTabs tabs={TABS} />;
+  const unread = useUnreadCount();
+  return <AppTabs tabs={TABS} badges={{ messages: unread }} />;
 }

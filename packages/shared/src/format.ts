@@ -31,6 +31,18 @@ export function regionLabel(slug: string): string {
   return REGIONS.find((r) => r.slug === slug)?.he ?? slug;
 }
 
+/** "כל הארץ" when every region is served, else the region names (first `max` of them). */
+export function formatRegions(regions: readonly string[], max = 99): string {
+  if (REGIONS.every((r) => regions.includes(r.slug))) return 'כל הארץ';
+  const names = regions.map(regionLabel);
+  return names.length > max ? `${names.slice(0, max).join(' · ')} +${names.length - max}` : names.join(' · ');
+}
+
+/** Price range for couples; vendors who don't state a price show "מחיר לפי פנייה". */
+export function formatPriceOrAsk(from: number | null | undefined, to: number | null | undefined): string {
+  return formatPriceRange(from, to) || 'מחיר לפי פנייה';
+}
+
 export function categoryLabel(slug: string): string {
   return VENDOR_CATEGORIES.find((c) => c.slug === slug)?.he ?? slug;
 }

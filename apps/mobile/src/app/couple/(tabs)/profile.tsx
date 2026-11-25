@@ -4,6 +4,8 @@ import { StyleSheet, View } from 'react-native';
 
 import { formatHebrewDate } from '@soon/shared';
 
+import { Button } from '@/components/Button';
+import { CountBadge } from '@/components/CountBadge';
 import { CoverPicker } from '@/components/CoverPicker';
 import { PressableScale, Reveal } from '@/components/motion';
 import { Screen } from '@/components/Screen';
@@ -13,6 +15,7 @@ import { confirm, notify } from '@/lib/confirm';
 import { formatDay } from '@/lib/dates';
 import { resetDemo, signInDemo, signOutToStart } from '@/lib/demo';
 import { useSessionUser } from '@/lib/session';
+import { useUnreadCount } from '@/lib/unread';
 import { useOwnWedding } from '@/lib/wedding';
 import { colors, fonts, radius, space } from '@/theme/tokens';
 
@@ -23,6 +26,7 @@ export default function Profile() {
   const [coverOpen, setCoverOpen] = useState(false);
   const [lang, setLang] = useState<'he' | 'en'>('he');
   const [busy, setBusy] = useState<string | null>(null);
+  const unread = useUnreadCount();
   const isDemo = Boolean(user?.email.endsWith('@demo.soon'));
 
   async function run(key: string, fn: () => Promise<void>) {
@@ -62,7 +66,13 @@ export default function Profile() {
         <Card style={{ paddingVertical: space.xs, gap: 0 }}>
           <ListRow icon="edit-3" label="פרטי החתונה" hint="שמות, תאריך, אזור ותקציב" onPress={() => router.push('/couple/wedding-details' as Href)} />
           <ListRow icon="camera" label="תמונת רקע" hint="החליפו את התמונה במסך הבית" onPress={() => setCoverOpen(true)} />
-          <ListRow icon="message-circle" label="הודעות" hint="שיחות עם ספקים" onPress={() => router.push('/messages' as Href)} />
+          <ListRow
+            icon="message-circle"
+            label="הודעות"
+            hint="שיחות עם ספקים"
+            trailing={<CountBadge count={unread} />}
+            onPress={() => router.push('/messages' as Href)}
+          />
           <ListRow
             icon="globe"
             label="שפה"
@@ -118,14 +128,19 @@ export default function Profile() {
                 }
               }}
             />
-            <ListRow icon="chevrons-right" label="חזרה למסך הפתיחה" disabled={!!busy} onPress={() => run('start', signOutToStart)} />
           </Card>
         </Reveal>
-      ) : (
-        <Card tone="muted" style={{ paddingVertical: space.xs, gap: 0 }}>
-          <ListRow icon="log-out" label="התנתקות" onPress={() => run('start', signOutToStart)} />
-        </Card>
-      )}
+      ) : null}
+
+      <Button
+        label={busy === 'start' ? 'מתנתקים…' : 'התנתקות'}
+        variant="outline"
+        icon="log-out"
+        disabled={!!busy}
+        onPress={async () => {
+          if (await confirm('התנתקות', 'לצאת מהחשבון במכשיר הזה?', 'התנתקות')) await run('start', signOutToStart);
+        }}
+      />
 
       <Text variant="caption" color={colors.inkMuted} align="center">
         {user?.email}

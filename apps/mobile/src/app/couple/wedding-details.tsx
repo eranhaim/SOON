@@ -22,7 +22,7 @@ export default function WeddingDetails() {
   const [form, setForm] = useState<WeddingFormState>(() => ({
     partner1Name: w.partner1Name,
     partner2Name: w.partner2Name,
-    phone: '',
+    phone: (user as { phone?: string | null } | null)?.phone ?? '',
     weddingDate: w.weddingDate,
     region: w.region,
     venueName: w.venueName ?? '',
@@ -43,6 +43,7 @@ export default function WeddingDetails() {
       region: form.region,
       venueName: form.venueName.trim() || null,
       budgetTotal: shekelsToAgorot(form.budget),
+      phone: form.phone.trim() || null,
       closedCategories: form.closed,
       neededCategories: form.needed,
     });

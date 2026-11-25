@@ -1,13 +1,11 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import {
   agorotToShekelsInput,
   MIN_ABOUT_CHARS,
-  REGIONS,
   shekelsToAgorot,
-  VENDOR_CATEGORIES,
   vendorProfileUpdateSchema,
   type RegionSlug,
 } from '@soon/shared';
@@ -16,7 +14,8 @@ import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
-import { Chip, ChipGroup, SectionTitle } from '@/components/ui';
+import { SectionTitle } from '@/components/ui';
+import { AboutField, CategoryPicker, PriceFields, RegionPicker } from '@/components/VendorFields';
 import { ApiError, errorMessage } from '@/lib/api';
 import { useOwnVendor } from '@/lib/vendor-context';
 import { colors, space } from '@/theme/tokens';
@@ -26,6 +25,7 @@ export default function VendorProfile() {
   const { vendor, mutate } = useOwnVendor();
   const [form, setForm] = useState({
     businessName: vendor.businessName,
+    contactFirstName: vendor.contactFirstName ?? '',
     category: vendor.categorySlug,
     phone: vendor.phone ?? '',
     email: vendor.email ?? '',
@@ -37,6 +37,7 @@ export default function VendorProfile() {
     cancellationPolicy: vendor.cancellationPolicy ?? '',
   });
   const [regions, setRegions] = useState<RegionSlug[]>(vendor.regions);
+  const [noPrice, setNoPrice] = useState(vendor.priceFromAgorot == null && vendor.priceToAgorot == null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ message: string; field?: string }>();
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -45,13 +46,14 @@ export default function VendorProfile() {
     setError(undefined);
     const payload = {
       businessName: form.businessName,
+      contactFirstName: form.contactFirstName.trim() || null,
       category: form.category,
       phone: form.phone.trim() || null,
       email: form.email.trim() || null,
       websiteUrl: form.websiteUrl.trim(),
       instagramUrl: form.instagramUrl.trim(),
-      priceFrom: shekelsToAgorot(form.priceFrom),
-      priceTo: shekelsToAgorot(form.priceTo),
+      priceFrom: noPrice ? null : shekelsToAgorot(form.priceFrom),
+      priceTo: noPrice ? null : shekelsToAgorot(form.priceTo),
       about: form.about.trim() || null,
       cancellationPolicy: form.cancellationPolicy.trim() || null,
       regions,
@@ -77,29 +79,17 @@ export default function VendorProfile() {
 
   return (
     <Screen title="פרטי העסק" back backTo="/vendor/business">
+      <TextField label="שם פרטי" value={form.contactFirstName} onChangeText={set('contactFirstName')} error={fieldError('contactFirstName')} />
       <TextField label="שם העסק" value={form.businessName} onChangeText={set('businessName')} error={fieldError('businessName')} />
 
       <View style={{ gap: space.sm }}>
         <SectionTitle>תחום</SectionTitle>
-        <ChipGroup>
-          {VENDOR_CATEGORIES.map((c) => (
-            <Chip key={c.slug} label={c.he} selected={form.category === c.slug} onPress={() => set('category')(c.slug)} />
-          ))}
-        </ChipGroup>
+        <CategoryPicker value={form.category} onChange={set('category')} />
       </View>
 
       <View style={{ gap: space.sm }}>
         <SectionTitle>אזורי שירות</SectionTitle>
-        <ChipGroup>
-          {REGIONS.map((r) => (
-            <Chip
-              key={r.slug}
-              label={r.he}
-              selected={regions.includes(r.slug)}
-              onPress={() => setRegions((cur) => (cur.includes(r.slug) ? cur.filter((x) => x !== r.slug) : [...cur, r.slug]))}
-            />
-          ))}
-        </ChipGroup>
+        <RegionPicker value={regions} onChange={setRegions} />
         {fieldError('regions') ? (
           <Text variant="caption" color={colors.danger}>
             {fieldError('regions')}
@@ -107,29 +97,32 @@ export default function VendorProfile() {
         ) : null}
       </View>
 
-      <View style={styles.row}>
-        <View style={{ flex: 1 }}>
-          <TextField label="מחיר החל מ־ (₪)" ltr keyboardType="number-pad" value={form.priceFrom} onChangeText={set('priceFrom')} error={fieldError('priceFrom')} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <TextField label="עד (₪)" ltr keyboardType="number-pad" value={form.priceTo} onChangeText={set('priceTo')} error={fieldError('priceTo')} />
-        </View>
+      <View style={{ gap: space.sm }}>
+        <SectionTitle>מחירים</SectionTitle>
+        <PriceFields
+          from={form.priceFrom}
+          to={form.priceTo}
+          hidden={noPrice}
+          onChange={(v) => {
+            setNoPrice(v.hidden);
+            setForm((f) => ({ ...f, priceFrom: v.from, priceTo: v.to }));
+          }}
+          errorFrom={fieldError('priceFrom')}
+          errorTo={fieldError('priceTo')}
+        />
       </View>
 
-      <View style={{ gap: 4 }}>
-        <TextField
-          label="אודות"
-          value={form.about}
-          onChangeText={set('about')}
-          multiline
-          style={{ minHeight: 140, textAlignVertical: 'top' }}
-          maxLength={4000}
-          error={fieldError('about')}
-        />
-        <Text variant="caption" color={aboutLen >= MIN_ABOUT_CHARS ? colors.inkMuted : colors.inkSoft}>
-          {aboutLen >= MIN_ABOUT_CHARS ? `${aboutLen} תווים` : `${aboutLen}/${MIN_ABOUT_CHARS} תווים לפחות לשליחה לאישור`}
-        </Text>
-      </View>
+      <AboutField
+        value={form.about}
+        onChange={set('about')}
+        facts={{ businessName: form.businessName, category: form.category, regions }}
+        error={fieldError('about')}
+        footer={
+          <Text variant="caption" color={aboutLen >= MIN_ABOUT_CHARS ? colors.inkMuted : colors.inkSoft}>
+            {aboutLen >= MIN_ABOUT_CHARS ? `${aboutLen} תווים` : `${aboutLen}/${MIN_ABOUT_CHARS} תווים לפחות לשליחה לאישור`}
+          </Text>
+        }
+      />
 
       <SectionTitle>יצירת קשר וקישורים</SectionTitle>
       <TextField label="טלפון" ltr keyboardType="phone-pad" value={form.phone} onChangeText={set('phone')} error={fieldError('phone')} />
@@ -167,7 +160,3 @@ function hebrewIssue(field: string, message?: string) {
   };
   return labels[field] ?? 'בדקו את הפרטים';
 }
-
-const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: space.md },
-});

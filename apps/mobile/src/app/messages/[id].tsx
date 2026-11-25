@@ -1,4 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -13,8 +14,10 @@ import { PressableScale } from '@/components/motion';
 import { Loading } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { api } from '@/lib/api';
+import { notify } from '@/lib/confirm';
 import { formatDay, formatTime } from '@/lib/dates';
 import { keys, useApiQuery } from '@/lib/query';
+import { openWhatsApp } from '@/lib/whatsapp';
 import { colors, fonts, radius, shadow, space, textStart } from '@/theme/tokens';
 
 /** One conversation (spec §8). Polls every few seconds, so both sides see new messages live. */
@@ -32,6 +35,14 @@ export default function Thread() {
     const t = setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 50);
     return () => clearTimeout(t);
   }, [count]);
+
+  // Opening the thread marks it read on the server: refresh the red counters.
+  const loaded = Boolean(q.data);
+  useEffect(() => {
+    if (!loaded) return;
+    void qc.invalidateQueries({ queryKey: keys.unread });
+    void qc.invalidateQueries({ queryKey: keys.conversations });
+  }, [loaded, count, qc]);
 
   if (q.isPending || !q.data) return <Loading />;
   const d = q.data;
@@ -94,6 +105,21 @@ export default function Thread() {
             {d.viewerSide === 'couple' ? d.conversation.vendor.categoryLabel : 'זוג'}
           </Text>
         </View>
+        {d.otherPhone ? (
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel="מעבר לוואטסאפ"
+            scaleTo={0.92}
+            onPress={async () => {
+              if (!(await openWhatsApp(d.otherPhone!))) notify('מספר לא תקין', 'לא הצלחנו לפתוח את וואטסאפ עם המספר הזה.');
+            }}
+            style={styles.whatsapp}>
+            <FontAwesome name="whatsapp" size={18} color="#FFFFFF" />
+            <Text variant="caption" color="#FFFFFF" style={{ fontFamily: fonts.bodyMedium }}>
+              וואטסאפ
+            </Text>
+          </PressableScale>
+        ) : null}
       </View>
 
       {ctx.length ? (
@@ -181,6 +207,15 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm,
   },
   back: { width: 40, height: 40, borderRadius: radius.round, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow.sm },
+  whatsapp: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 34,
+    paddingHorizontal: 12,
+    borderRadius: radius.pill,
+    backgroundColor: '#25D366',
+  },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   context: {
     flexDirection: 'row',

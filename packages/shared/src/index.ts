@@ -9,3 +9,4 @@ export * from './planning';
 export * from './readiness';
 export * from './regions';
 export * from './schemas';
+export * from './faq';

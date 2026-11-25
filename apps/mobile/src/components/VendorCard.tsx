@@ -6,8 +6,8 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { PressableScale } from "./motion";
 
 import {
-  formatPriceRange,
-  regionLabel,
+  formatPriceOrAsk,
+  formatRegions,
   type VendorCardDTO,
 } from "@soon/shared";
 
@@ -47,7 +47,7 @@ export function VendorCard({
   const compact = variant === "compact";
   const grid = variant === "grid";
   const small = compact || grid;
-  const price = formatPriceRange(v.priceFromAgorot, v.priceToAgorot);
+  const price = formatPriceOrAsk(v.priceFromAgorot, v.priceToAgorot);
   const tags = [
     v.availability === "available" && { label: "זמין בתאריך שלכם", dark: true },
     v.availability === "booked" && { label: "תפוס בתאריך שלכם", dark: false },
@@ -125,7 +125,7 @@ export function VendorCard({
             style={{ letterSpacing: 1.2 }}
           >
             {small && v.regions.length
-              ? `${v.categoryLabel} · ${regionLabel(v.regions[0]!)}`
+              ? `${v.categoryLabel} · ${formatRegions(v.regions, 1)}`
               : v.categoryLabel}
           </Text>
           <View style={styles.titleRow}>
@@ -155,7 +155,7 @@ export function VendorCard({
           </View>
           {!small && v.regions.length ? (
             <Text variant="bodySmall" color={colors.inkSoft} numberOfLines={1}>
-              {v.regions.map(regionLabel).join(" · ")}
+              {formatRegions(v.regions)}
             </Text>
           ) : null}
           {price ? (

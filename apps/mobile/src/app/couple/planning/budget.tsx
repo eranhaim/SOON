@@ -43,6 +43,8 @@ export default function Budget() {
   const [item, setItem] = useState<ItemDraft | null>(null);
   const [pay, setPay] = useState<PayDraft | null>(null);
   const [error, setError] = useState<string>();
+  const [totalDraft, setTotalDraft] = useState<string | null>(null);
+  const saveTotal = useApiMutation({ invalidate: [keys.budget, keys.home, keys.wedding] });
 
   if (q.isPending) return <Loading />;
   const b = q.data!;
@@ -99,12 +101,26 @@ export default function Budget() {
       backTo="/couple/planning"
       right={<IconButton icon="plus" label="הוספה" onPress={() => (tab === 'budget' ? editItem() : editPay())} />}>
       <Reveal style={styles.hero}>
-        <Text variant="eyebrow" color={colors.goldLight}>
-          תקציב כולל
-        </Text>
-        <Text color={colors.inverse} style={styles.heroNum}>
-          {total != null ? formatAgorot(total) : '—'}
-        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="עריכת התקציב הכולל"
+          onPress={() => setTotalDraft(agorotToShekelsInput(total))}
+          style={styles.totalRow}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text variant="eyebrow" color={colors.goldLight}>
+              תקציב כולל
+            </Text>
+            <Text color={colors.inverse} style={styles.heroNum}>
+              {total != null ? formatAgorot(total) : '—'}
+            </Text>
+          </View>
+          <View style={styles.totalEdit}>
+            <Feather name="edit-2" size={14} color={colors.inverse} />
+            <Text variant="caption" color={colors.inverse}>
+              עריכה
+            </Text>
+          </View>
+        </Pressable>
         {total ? (
           <ProgressBar value={b.committedAgorot / total} color={over ? colors.inverse : colors.goldLight} track="rgba(255,255,255,0.18)" height={5} />
         ) : null}
@@ -116,7 +132,7 @@ export default function Budget() {
         </View>
         {!total ? (
           <Text variant="caption" color="rgba(255,255,255,0.7)">
-            הגדירו תקציב כולל בפרטי החתונה כדי לראות יתרות וחריגות.
+            הגדירו תקציב כולל (לחצו על ״עריכה״) כדי לראות יתרות וחריגות.
           </Text>
         ) : null}
       </Reveal>
@@ -196,6 +212,37 @@ export default function Budget() {
       )}
 
       <Sheet
+        visible={totalDraft != null}
+        onClose={() => setTotalDraft(null)}
+        eyebrow="תקציב"
+        title="תקציב כולל לחתונה"
+        footer={
+          <Button
+            label="שמירה"
+            loading={saveTotal.isPending}
+            style={{ flex: 1 }}
+            onPress={() =>
+              saveTotal.mutate(
+                { path: '/api/weddings/me', method: 'PATCH', json: { budgetTotal: shekelsToAgorot(totalDraft ?? '') } },
+                { onSuccess: () => setTotalDraft(null), onError: (e) => setError(errorMessage(e)) },
+              )
+            }
+          />
+        }>
+        <TextField
+          label="סכום (₪)"
+          ltr
+          keyboardType="number-pad"
+          value={totalDraft ?? ''}
+          onChangeText={setTotalDraft}
+        />
+        <Text variant="caption" color={colors.inkMuted}>
+          השאירו ריק כדי להסיר את התקציב הכולל.
+        </Text>
+        {error ? <Text variant="bodySmall" color={colors.danger}>{error}</Text> : null}
+      </Sheet>
+
+      <Sheet
         visible={item != null}
         onClose={() => setItem(null)}
         title={item?.id ? 'עריכת שורת תקציב' : 'שורת תקציב חדשה'}
@@ -236,15 +283,25 @@ export default function Budget() {
         {item ? (
           <>
             <ChipGroup>
-              {BUDGET_CATEGORIES.map((c) => (
-                <Chip
-                  key={c.key}
-                  label={c.label}
-                  selected={item.category === c.key}
-                  onPress={() => setItem({ ...item, category: c.key, title: item.title || c.label })}
-                />
-              ))}
+              {BUDGET_CATEGORIES.map((c) => {
+                const taken = c.key !== 'other' ? b.items.find((i) => i.category === c.key && i.id !== item.id) : undefined;
+                return (
+                  <Chip
+                    key={c.key}
+                    label={taken ? `${c.label} ✓` : c.label}
+                    selected={item.category === c.key}
+                    onPress={() => {
+                      // One line per category (except "other"): jump to the existing line.
+                      if (taken) return editItem(taken);
+                      setItem({ ...item, category: c.key, title: item.title || c.label });
+                    }}
+                  />
+                );
+              })}
             </ChipGroup>
+            <Text variant="caption" color={colors.inkMuted}>
+              לכל קטגוריה יש שורה אחת. קטגוריה עם ✓ כבר קיימת – לחיצה עליה פותחת אותה לעריכה.
+            </Text>
             <TextField label="שם" value={item.title} onChangeText={(title) => setItem({ ...item, title })} />
             <TextField label="ספק (אם לא מ־SOON)" value={item.vendorName} onChangeText={(vendorName) => setItem({ ...item, vendorName })} />
             <View style={{ flexDirection: 'row', gap: space.md }}>
@@ -331,6 +388,16 @@ function Sum({ label, value, danger }: { label: string; value: string; danger?: 
 }
 
 const styles = StyleSheet.create({
+  totalRow: { flexDirection: 'row', alignItems: 'flex-end', gap: space.md },
+  totalEdit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
   hero: {
     gap: space.md,
     padding: space.lg,

@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatAgorot, formatHebrewDate, VENDOR_CATEGORIES, type CoupleHomeDTO } from '@soon/shared';
 
 import { Button } from '@/components/Button';
+import { CountBadge } from '@/components/CountBadge';
 import { CoverPicker, DEFAULT_COVER } from '@/components/CoverPicker';
 import { PressableScale, Reveal, useCountUp } from '@/components/motion';
 import { ProgressBar } from '@/components/Progress';
@@ -19,6 +20,7 @@ import { VendorCard } from '@/components/VendorCard';
 import { SectionTitle } from '@/components/ui';
 import { formatDateTime, formatDayDots } from '@/lib/dates';
 import { keys, useApiQuery } from '@/lib/query';
+import { useUnreadCount } from '@/lib/unread';
 import { colors, fonts, radius, shadow, space } from '@/theme/tokens';
 
 /** Couple home (spec §4): photo hero with countdown, progress tiles, nudges, personal feed. */
@@ -27,6 +29,7 @@ export default function CoupleHome() {
   const q = useApiQuery<CoupleHomeDTO>(keys.home, '/api/couple/home');
   const [coverOpen, setCoverOpen] = useState(false);
   const days = useCountUp(q.data?.daysToGo ?? 0);
+  const unread = useUnreadCount();
 
   if (q.isPending) return <Loading />;
   if (q.isError) {
@@ -60,7 +63,7 @@ export default function CoupleHome() {
           <View style={[styles.heroTop, { paddingTop: insets.top + space.md }]}>
             <Logo variant="symbol" size={34} color={colors.inverse} />
             <View style={styles.heroActions}>
-              <GlassButton icon="message-circle" label="הודעות" onPress={() => router.push('/messages' as Href)} />
+              <GlassButton icon="message-circle" label="הודעות" badge={unread} onPress={() => router.push('/messages' as Href)} />
               <GlassButton icon="camera" label="תמונת רקע" onPress={() => setCoverOpen(true)} />
             </View>
           </View>
@@ -186,10 +189,21 @@ export default function CoupleHome() {
   );
 }
 
-function GlassButton({ icon, label, onPress }: { icon: 'camera' | 'message-circle'; label: string; onPress: () => void }) {
+function GlassButton({
+  icon,
+  label,
+  onPress,
+  badge = 0,
+}: {
+  icon: 'camera' | 'message-circle';
+  label: string;
+  onPress: () => void;
+  badge?: number;
+}) {
   return (
     <PressableScale accessibilityRole="button" accessibilityLabel={label} scaleTo={0.9} onPress={onPress} style={styles.glass}>
       <Feather name={icon} size={18} color={colors.ink} />
+      <CountBadge count={badge} style={styles.glassBadge} />
     </PressableScale>
   );
 }
@@ -285,6 +299,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  glassBadge: { position: 'absolute', top: -4, right: -4 },
   heroText: { position: 'absolute', left: 0, right: 0, bottom: 72, alignItems: 'center', paddingHorizontal: space.lg, gap: 4 },
   count: { letterSpacing: 2.5, marginBottom: space.sm },
   of: { fontFamily: fonts.displayLight, fontSize: 18, lineHeight: 24, fontStyle: 'italic' },
