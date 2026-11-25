@@ -85,8 +85,8 @@ export default function Planning() {
       <Group title="האורחים">
         <ListRow icon="user-check" label="רשימת מוזמנים" hint="אישורי הגעה, צדדים ושולחנות" onPress={() => router.push('/couple/planning/guests')} />
         <ListRow icon="mail" label="הזמנה לחתונה" hint="נוסח בעזרת AI, מעוצב ומוכן לשליחה" onPress={() => router.push('/couple/planning/invitation' as Href)} />
-        <ListRow icon="layout" label="סידורי הושבה" hint="בקרוב" disabled />
-      </Group>
+        <ListRow icon="globe" label="אתר החתונה" hint="הזמנה אינטראקטיבית: אישורי הגעה, ניווט, ברכות ומתנות" onPress={() => router.push('/couple/planning/site' as Href)} />
+              </Group>
 
       <Group title="החוויה">
         <ListRow

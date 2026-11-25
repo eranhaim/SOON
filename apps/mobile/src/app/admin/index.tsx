@@ -5,12 +5,11 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { VENDOR_STATUS_LABELS, VENDOR_STATUSES, type AdminVendorList, type VendorStatus } from '@soon/shared';
 
-import { Button } from '@/components/Button';
+import { AdminNav } from '@/components/AdminNav';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Chip, ChipGroup, StatusBadge } from '@/components/ui';
 import { api } from '@/lib/api';
-import { authClient } from '@/lib/auth-client';
 import { formatDate } from '@/lib/dates';
 import { colors, hairline, space } from '@/theme/tokens';
 
@@ -47,16 +46,8 @@ export default function AdminVendors() {
       maxWidth={960}
       refreshing={loading}
       onRefresh={() => load(status)}
-      right={
-        <Button
-          variant="ghost"
-          label="התנתקות"
-          onPress={async () => {
-            await authClient.signOut();
-            router.replace('/choose-role');
-          }}
-        />
-      }>
+      >
+      <AdminNav />
       <ChipGroup>
         {VENDOR_STATUSES.map((s) => (
           <Chip

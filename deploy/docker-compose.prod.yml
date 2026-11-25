@@ -37,6 +37,10 @@ services:
       WEB_ORIGINS: ${PUBLIC_URL}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       DEMO_TOOLS: ${DEMO_TOOLS:-false}
+      UPAY_EMAIL: ${UPAY_EMAIL:-}
+      UPAY_KEY: ${UPAY_KEY:-}
+      UPAY_DEMO: ${UPAY_DEMO:-false}
+      PAYMENTS_TEST_MODE: ${PAYMENTS_TEST_MODE:-true}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       S3_ENDPOINT: ${S3_ENDPOINT:-}
       S3_REGION: ${S3_REGION:-us-east-1}

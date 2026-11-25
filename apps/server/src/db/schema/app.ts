@@ -32,6 +32,7 @@ import {
 import {
   type InvitationDTO,
   type VendorSettings,
+  type WeddingSiteDetails,
   AVAILABILITY_STATUSES,
   CALENDAR_ENTRY_KINDS,
   GUEST_SIDES,
@@ -624,6 +625,8 @@ export const guest = pgTable(
     partySize: integer('party_size').notNull().default(1),
     tableLabel: text('table_label'),
     notes: text('notes'),
+    /** When the guest answered on the wedding site (RSVP). */
+    respondedAt: timestamp('responded_at', { withTimezone: true }),
     ...timestamps,
   },
   (t) => [index('guest_wedding_idx').on(t.weddingId), check('guest_party_size_ck', sql`${t.partySize} between 1 and 50`)],
@@ -761,3 +764,120 @@ export const coupleChatMessage = pgTable(
   },
   (t) => [index('couple_chat_message_chat_idx').on(t.chatId, t.createdAt)],
 );
+
+// ---------- interactive invitation (wedding site), blessings and gifts ----------
+/** Invitation designs uploaded by admins; couples pick one for their invitation and site. */
+export const invitationTemplate = pgTable('invitation_template', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  /** Background image (admin upload). */
+  backgroundUrl: text('background_url'),
+  paperColor: text('paper_color').notNull().default('#FBF7F1'),
+  textColor: text('text_color').notNull().default('#2B1E1C'),
+  accentColor: text('accent_color').notNull().default('#B48A4E'),
+  /** 'serif' (editorial) or 'sans' (clean). */
+  font: text('font').notNull().default('serif'),
+  active: boolean('active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+
+/** The couple's public wedding site (/i/<slug>): the interactive invitation, RSVP, blessings and gifts. */
+export const weddingSite = pgTable('wedding_site', {
+  weddingId: uuid('wedding_id')
+    .primaryKey()
+    .references(() => wedding.id, { onDelete: 'cascade' }),
+  slug: text('slug').notNull().unique(),
+  templateId: uuid('template_id').references(() => invitationTemplate.id, { onDelete: 'set null' }),
+  published: boolean('published').notNull().default(false),
+  coverUrl: text('cover_url'),
+  story: text('story'),
+  details: jsonb('details').$type<WeddingSiteDetails>().notNull().default(sql`'{"schedule":[]}'::jsonb`),
+  rsvpEnabled: boolean('rsvp_enabled').notNull().default(true),
+  giftsEnabled: boolean('gifts_enabled').notNull().default(true),
+  ...timestamps,
+});
+
+/** A blessing a guest left on the wedding site (with or without a gift). */
+export const weddingBlessing = pgTable(
+  'wedding_blessing',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id')
+      .notNull()
+      .references(() => wedding.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    body: text('body').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('wedding_blessing_wedding_idx').on(t.weddingId, t.createdAt)],
+);
+
+export const PAYMENT_STATUSES = ['pending', 'paid', 'failed'] as const;
+
+/** A money gift to the couple through the site. SOON's fee is charged on top of the gift. */
+export const weddingGift = pgTable(
+  'wedding_gift',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    weddingId: uuid('wedding_id')
+      .notNull()
+      .references(() => wedding.id, { onDelete: 'cascade' }),
+    giverName: text('giver_name').notNull(),
+    giverPhone: text('giver_phone'),
+    blessing: text('blessing'),
+    amountAgorot: integer('amount_agorot').notNull(),
+    feeAgorot: integer('fee_agorot').notNull().default(0),
+    status: text('status', { enum: PAYMENT_STATUSES }).notNull().default('pending'),
+    provider: text('provider').notNull(),
+    providerRef: text('provider_ref'),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('wedding_gift_wedding_idx').on(t.weddingId, t.createdAt),
+    check('wedding_gift_amount_ck', sql`${t.amountAgorot} > 0 and ${t.feeAgorot} >= 0`),
+  ],
+);
+
+// ---------- vendor billing ----------
+/** The vendor's saved card (provider token) for the monthly plan charge. */
+export const vendorPaymentMethod = pgTable('vendor_payment_method', {
+  vendorId: uuid('vendor_id')
+    .primaryKey()
+    .references(() => vendor.id, { onDelete: 'cascade' }),
+  provider: text('provider').notNull(),
+  token: text('token').notNull(),
+  last4: text('last4'),
+  brand: text('brand'),
+  expiry: text('expiry'),
+  ...timestamps,
+});
+
+/** One plan charge (a month of a paid plan). */
+export const vendorCharge = pgTable(
+  'vendor_charge',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    vendorId: uuid('vendor_id')
+      .notNull()
+      .references(() => vendor.id, { onDelete: 'cascade' }),
+    plan: text('plan').notNull(),
+    amountAgorot: integer('amount_agorot').notNull(),
+    status: text('status', { enum: PAYMENT_STATUSES }).notNull().default('pending'),
+    provider: text('provider').notNull(),
+    providerRef: text('provider_ref'),
+    error: text('error'),
+    periodEnd: timestamp('period_end', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('vendor_charge_vendor_idx').on(t.vendorId, t.createdAt)],
+);
+
+// ---------- platform settings (admin) ----------
+export const appSetting = pgTable('app_setting', {
+  key: text('key').primaryKey(),
+  value: jsonb('value').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});

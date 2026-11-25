@@ -417,20 +417,6 @@ export async function businessRoutes(app: FastifyInstance) {
     return accountOf(row!);
   });
 
-  /** Change plan. Billing isn't connected yet, so the change applies at once. */
-  app.put('/api/vendors/me/plan', async (request, reply) => {
-    const ctx = await requireOwnVendor(request, reply);
-    if (!ctx) return;
-    const b = await parseBody(z.object({ plan: z.enum(['basic', 'pro', 'premium']) }), request.body, reply);
-    if (!b) return;
-    const [row] = await db
-      .update(vendor)
-      .set({ plan: b.plan, planSince: new Date() })
-      .where(eq(vendor.id, ctx.vendor.id))
-      .returning();
-    return accountOf(row!);
-  });
-
   /** New secret feed address (the old one stops working everywhere). */
   app.post('/api/vendors/me/calendar-token', async (request, reply) => {
     const ctx = await requireOwnVendor(request, reply);

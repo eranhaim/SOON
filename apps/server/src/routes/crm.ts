@@ -238,7 +238,7 @@ export async function crmRoutes(app: FastifyInstance) {
         or (w.partner1_name || ' ו' || w.partner2_name) ilike ${like}
         or exists (select 1 from wedding_member m join "user" u on u.id = m.user_id
           where m.wedding_id = w.id and (lower(u.email) = lower(${q})
-            or (${digits.length >= 9} and regexp_replace(coalesce(u.phone, ''), '[^0-9]', '', 'g') like '%' || ${digits.slice(-9)})))
+            ${digits.length >= 9 ? sql`or regexp_replace(coalesce(u.phone, ''), '[^0-9]', '', 'g') like ${`%${digits.slice(-9)}`}` : sql``}))
       order by w.wedding_date asc nulls last
       limit 15`);
     return rows.rows.map(

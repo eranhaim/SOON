@@ -1,5 +1,7 @@
+import { Image } from 'expo-image';
+import { router, type Href } from 'expo-router';
 import { useState } from 'react';
-import { Platform, Share, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, Share, StyleSheet, View } from 'react-native';
 
 import {
   formatHebrewDate,
@@ -7,10 +9,14 @@ import {
   type InvitationDTO,
   type InvitationRequest,
   type InvitationStyle,
+  type InvitationTemplateDTO,
+  type WeddingSiteDTO,
 } from '@soon/shared';
 
 import { Button } from '@/components/Button';
 import { DateField } from '@/components/DateField';
+import { InvitationArt } from '@/components/InvitationArt';
+import { PressableScale } from '@/components/motion';
 import { Loading, Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
@@ -18,7 +24,8 @@ import { Chip, ChipGroup, Divider } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { notify } from '@/lib/confirm';
 import { formatDayDots } from '@/lib/dates';
-import { keys, useApiQuery } from '@/lib/query';
+import { keys, useApiMutation, useApiQuery } from '@/lib/query';
+import { SITE_KEY } from '@/lib/site';
 import { useOwnWedding } from '@/lib/wedding';
 import { colors, fonts, radius, shadow, space } from '@/theme/tokens';
 
@@ -29,6 +36,10 @@ const weekday = (iso: string) => `יום ${WEEKDAYS[new Date(`${iso}T12:00:00Z`)
 export default function Invitation() {
   const w = useOwnWedding();
   const saved = useApiQuery<{ invitation: InvitationDTO | null }>(keys.invitation, '/api/planning/invitation');
+  const site = useApiQuery<WeddingSiteDTO>(SITE_KEY, '/api/weddings/me/site');
+  const templates = useApiQuery<InvitationTemplateDTO[]>(['invitation-templates'], '/api/invitation-templates');
+  const saveSite = useApiMutation<WeddingSiteDTO>({ setData: SITE_KEY });
+  const template = templates.data?.find((t) => t.id === site.data?.templateId) ?? null;
   const [form, setForm] = useState<InvitationRequest>(() => ({
     style: 'classic',
     partner1Name: w.partner1Name,
@@ -114,7 +125,12 @@ export default function Invitation() {
     <Screen back backTo="/couple/planning" title="הזמנה לחתונה" subtitle="נוסח בעזרת AI, מעוצב ומוכן לשליחה">
       {result ? (
         <>
-          <InvitationCard inv={result} />
+          <TemplatePicker
+            templates={templates.data ?? []}
+            value={site.data?.templateId ?? null}
+            onChange={(templateId) => saveSite.mutate({ path: '/api/weddings/me/site', method: 'PUT', json: { templateId } })}
+          />
+          <InvitationCard inv={result} template={template} />
           <Text variant="caption" color={colors.inkMuted} align="center">
             {result.source === 'ai' ? 'הנוסח נכתב בעזרת בינה מלאכותית' : 'נוסח מוכן מתוך מאגר הנוסחים של SOON'}
           </Text>
@@ -135,6 +151,12 @@ export default function Invitation() {
             <Button label="נוסח אחר" icon="refresh-cw" variant="soft" loading={busy === 'gen'} onPress={generate} style={{ flex: 1 }} />
             <Button label={editing ? 'סיום עריכה' : 'עריכת הנוסח'} icon="edit-3" variant="soft" onPress={() => setEditing(!editing)} style={{ flex: 1 }} />
           </View>
+          <Button
+            label="הזמנה אינטראקטיבית: אישורי הגעה, ברכות ומתנות"
+            icon="globe"
+            variant="outline"
+            onPress={() => router.push('/couple/planning/site' as Href)}
+          />
           <Divider ornament />
           <Text variant="h2">שינוי הפרטים</Text>
         </>
@@ -202,59 +224,61 @@ export default function Invitation() {
   );
 }
 
-/** The designed invitation (black on white, centred, editorial). */
-function InvitationCard({ inv }: { inv: InvitationDTO }) {
+/** The designed invitation, in the chosen template (shared with the wedding site). */
+function InvitationCard({ inv, template }: { inv: InvitationDTO; template: InvitationTemplateDTO | null }) {
   const r = inv.request;
-  const modern = inv.style === 'modern';
-  const romantic = inv.style === 'romantic';
   return (
-    <View style={styles.card}>
-      <View style={styles.inner}>
-        <Text align="center" style={[styles.opening, romantic && { fontStyle: 'italic' }]}>
-          {inv.opening}
-        </Text>
-        <Text align="center" style={[styles.names, modern && { fontFamily: fonts.bodyBold, fontSize: 34, letterSpacing: -0.5 }]}>
-          {r.partner1Name}
-          {'\n'}&{'\n'}
-          {r.partner2Name}
-        </Text>
-        <View style={styles.rule} />
-        <Text align="center" style={[styles.body, romantic && { fontStyle: 'italic' }]}>
-          {inv.body}
-        </Text>
-        {r.weddingDate ? (
-          <View style={{ alignItems: 'center', gap: 2, marginTop: space.md }}>
-            <Text align="center" style={styles.weekday}>
-              {weekday(r.weddingDate)}
-            </Text>
-            <Text align="center" style={styles.date}>
-              {formatDayDots(r.weddingDate)}
-            </Text>
-            <Text align="center" style={styles.hebrew}>
-              {formatHebrewDate(r.weddingDate)}
-            </Text>
-          </View>
-        ) : null}
-        {r.venueName ? (
-          <Text align="center" style={styles.venue}>
-            {r.venueName}
+    <InvitationArt
+      template={template}
+      italic={inv.style === 'romantic'}
+      c={{
+        opening: inv.opening,
+        body: inv.body,
+        closing: inv.closing,
+        partner1Name: r.partner1Name,
+        partner2Name: r.partner2Name,
+        weddingDate: r.weddingDate,
+        venueName: r.venueName,
+        receptionTime: r.receptionTime,
+        chuppahTime: r.chuppahTime,
+      }}
+    />
+  );
+}
+
+/** Admin-made designs; the choice is saved on the couple's wedding site. */
+function TemplatePicker({ templates, value, onChange }: { templates: InvitationTemplateDTO[]; value: string | null; onChange: (id: string | null) => void }) {
+  if (!templates.length) return null;
+  return (
+    <View style={{ gap: space.sm }}>
+      <Text variant="caption" color={colors.inkSoft}>
+        עיצוב ההזמנה
+      </Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
+        <PressableScale onPress={() => onChange(null)} style={[styles.tpl, { backgroundColor: colors.surface }, value == null && styles.tplOn]}>
+          <Text variant="caption" align="center">
+            בסיסי
           </Text>
-        ) : null}
-        {r.receptionTime || r.chuppahTime ? (
-          <Text align="center" style={styles.times}>
-            {[r.receptionTime && `קבלת פנים ${r.receptionTime}`, r.chuppahTime && `חופה וקידושין ${r.chuppahTime}`].filter(Boolean).join('   ·   ')}
-          </Text>
-        ) : null}
-        <View style={styles.rule} />
-        <Text align="center" style={styles.closing}>
-          {inv.closing}
-        </Text>
-      </View>
+        </PressableScale>
+        {templates.map((t) => (
+          <PressableScale key={t.id} accessibilityLabel={t.name} onPress={() => onChange(t.id)} style={[styles.tpl, { backgroundColor: t.paperColor }, value === t.id && styles.tplOn]}>
+            {t.backgroundUrl ? <Image source={t.backgroundUrl} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
+            <View style={[styles.tplDot, { backgroundColor: t.accentColor }]} />
+            <Text variant="caption" align="center" color={t.textColor} numberOfLines={1} style={styles.tplName}>
+              {t.name}
+            </Text>
+          </PressableScale>
+        ))}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  tpl: { width: 92, height: 116, borderRadius: radius.md, overflow: 'hidden', alignItems: 'center', justifyContent: 'flex-end', padding: 6, ...shadow.sm },
+  tplOn: { borderWidth: 2, borderColor: colors.accent },
+  tplDot: { position: 'absolute', top: 10, width: 18, height: 18, borderRadius: 9 },
+  tplName: { fontFamily: fonts.bodyMedium },
   row: { flexDirection: 'row', gap: space.md },
   actions: { flexDirection: 'row', gap: space.sm },
   card: { borderRadius: radius.lg, ...shadow.md, backgroundColor: colors.surface, padding: 10, borderWidth: 0 },

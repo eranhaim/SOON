@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 
 import { uploadRequestSchema, type UploadPurpose } from '@soon/shared';
 
-import { parseBody, requireOwnVendor, requireWedding } from '../session';
+import { parseBody, requireAdmin, requireOwnVendor, requireWedding } from '../session';
 import { storage } from '../storage';
 
 const FOLDER: Record<UploadPurpose, string> = {
@@ -13,6 +13,7 @@ const FOLDER: Record<UploadPurpose, string> = {
   'vendor-receipt': 'receipts',
   'wedding-cover': 'cover',
   'wedding-image': 'images',
+  'admin-template': 'templates',
 };
 
 export function vendorScope(vendorId: string) {
@@ -33,9 +34,13 @@ export async function uploadRoutes(app: FastifyInstance) {
     if (!storage.enabled) return reply.status(503).send({ error: 'Uploads are not configured' });
     const purpose = (request.body as { purpose?: unknown } | undefined)?.purpose;
     const isWedding = typeof purpose === 'string' && purpose.startsWith('wedding-');
+    const isAdmin = purpose === 'admin-template';
 
     let scope: string;
-    if (isWedding) {
+    if (isAdmin) {
+      if (!(await requireAdmin(request, reply))) return;
+      scope = 'admin';
+    } else if (isWedding) {
       const ctx = await requireWedding(request, reply);
       if (!ctx) return;
       scope = weddingScope(ctx.wedding.id);
@@ -47,7 +52,9 @@ export async function uploadRoutes(app: FastifyInstance) {
 
     const body = await parseBody(uploadRequestSchema, request.body, reply);
     if (!body) return;
-    if (body.purpose.startsWith('wedding-') !== isWedding) return reply.status(400).send({ error: 'Bad purpose' });
+    if (body.purpose.startsWith('wedding-') !== isWedding || (body.purpose === 'admin-template') !== isAdmin) {
+      return reply.status(400).send({ error: 'Bad purpose' });
+    }
 
     const key = storage.newKey(`${scope}/${FOLDER[body.purpose]}`, body.contentType);
     return storage.presignPut(key, body.contentType);

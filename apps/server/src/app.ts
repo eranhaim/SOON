@@ -12,6 +12,10 @@ import { boardRoutes } from './routes/boards';
 import { businessRoutes } from './routes/business';
 import { coupleSocialRoutes } from './routes/couple-social';
 import { matchCallRoutes } from './routes/match-calls';
+import { adminPanelRoutes } from './routes/admin-panel';
+import { billingRoutes, startRenewals } from './routes/billing';
+import { paymentRoutes } from './routes/payments';
+import { weddingSiteRoutes } from './routes/wedding-site';
 import { coupleToolRoutes } from './routes/couple-tools';
 import { conversationRoutes } from './routes/conversations';
 import { coupleHomeRoutes } from './routes/couple-home';
@@ -77,6 +81,12 @@ export async function buildApp() {
   await app.register(businessRoutes);
   await app.register(coupleSocialRoutes);
   await app.register(matchCallRoutes);
+  await app.register(weddingSiteRoutes);
+  await app.register(paymentRoutes);
+  await app.register(billingRoutes);
+  await app.register(adminPanelRoutes);
+  const stopRenewals = startRenewals(app.log);
+  app.addHook('onClose', async () => stopRenewals());
   if (env.DEMO_TOOLS) await app.register(demoRoutes);
 
   // ---- Health / meta ----

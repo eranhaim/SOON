@@ -126,6 +126,8 @@ export const UPLOAD_PURPOSES = [
   /** Couple uploads (stored under the wedding). */
   'wedding-cover',
   'wedding-image',
+  /** Admin uploads (invitation template backgrounds). */
+  'admin-template',
 ] as const;
 export type UploadPurpose = (typeof UPLOAD_PURPOSES)[number];
 export const IMAGE_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
@@ -142,6 +144,7 @@ export const UPLOAD_RULES: Record<UploadPurpose, { types: readonly string[]; max
   'vendor-receipt': { types: [...IMAGE_CONTENT_TYPES, 'application/pdf'], maxBytes: MAX_IMAGE_BYTES },
   'wedding-cover': { types: IMAGE_CONTENT_TYPES, maxBytes: MAX_IMAGE_BYTES },
   'wedding-image': { types: IMAGE_CONTENT_TYPES, maxBytes: MAX_IMAGE_BYTES },
+  'admin-template': { types: IMAGE_CONTENT_TYPES, maxBytes: MAX_IMAGE_BYTES },
 };
 
 export const uploadRequestSchema = z

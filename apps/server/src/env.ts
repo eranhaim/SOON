@@ -28,6 +28,13 @@ const envSchema = z.object({
     ),
   /** Demo server: enables POST /api/demo/reset (demo accounts only). */
   DEMO_TOOLS: flag,
+  /** Upay (Israeli card clearing). Without both, payments run in test mode (no real money). */
+  UPAY_EMAIL: optional,
+  UPAY_KEY: optional,
+  /** Use Upay's demo system (demo.upay.co.il). */
+  UPAY_DEMO: flag,
+  /** Allow the built-in test payment page when Upay is not configured. */
+  PAYMENTS_TEST_MODE: flag,
   /** Enables AI-written invitations (Claude). Without it a built-in writer is used. */
   ANTHROPIC_API_KEY: optional,
   /** Comma-separated emails that get the admin role. */
