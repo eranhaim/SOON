@@ -881,3 +881,16 @@ export const appSetting = pgTable('app_setting', {
   value: jsonb('value').notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ---------- Google Calendar (vendor) ----------
+/** A vendor's own "SOON" calendar in their Google account; entries are pushed to it. */
+export const vendorGoogleCalendar = pgTable('vendor_google_calendar', {
+  vendorId: uuid('vendor_id')
+    .primaryKey()
+    .references(() => vendor.id, { onDelete: 'cascade' }),
+  refreshToken: text('refresh_token').notNull(),
+  calendarId: text('calendar_id').notNull(),
+  googleEmail: text('google_email'),
+  connectedAt: timestamp('connected_at', { withTimezone: true }).notNull().defaultNow(),
+  lastError: text('last_error'),
+});

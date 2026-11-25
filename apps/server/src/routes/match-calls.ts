@@ -22,6 +22,7 @@ import { availabilityEntry, conversation, lead, user, vendor } from '../db/schem
 import { badRequest, conflict, isExclusionViolation, isUuid, notFound } from '../http';
 import { parseBody, requireWedding } from '../session';
 import { openThread, postMessage } from './conversations';
+import { syncCalendarEntry } from './google-calendar';
 
 const DAYS_AHEAD = 14;
 /** No calls sooner than this from now. */
@@ -136,7 +137,7 @@ export async function matchCallRoutes(app: FastifyInstance) {
     const conversationId = await openThread(v, w, { eventDate: w.weddingDate });
     const [c] = await db.select({ leadId: conversation.leadId }).from(conversation).where(eq(conversation.id, conversationId));
     try {
-      await db.insert(availabilityEntry).values({
+      const [created] = await db.insert(availabilityEntry).values({
         vendorId: v.id,
         status: 'booked',
         kind: 'call',
@@ -146,7 +147,8 @@ export async function matchCallRoutes(app: FastifyInstance) {
         note: b.note ?? null,
         leadId: c?.leadId ?? null,
         weddingId: w.id,
-      });
+      }).returning({ id: availabilityEntry.id });
+      void syncCalendarEntry(v.id, created!.id, request.log);
     } catch (err) {
       if (isExclusionViolation(err)) return conflict(reply, 'השעה הזו כבר לא פנויה. בחרו שעה אחרת.');
       throw err;

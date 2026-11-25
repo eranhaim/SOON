@@ -1,6 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
-import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import {
@@ -29,6 +29,7 @@ import { TextField } from '@/components/TextField';
 import { TimeSelect } from '@/components/TimeSelect';
 import { Card, Chip, ChipGroup, EmptyState } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
+import { notify } from '@/lib/confirm';
 import { formatDay, formatTime, toInstant } from '@/lib/dates';
 import { keys, useApiMutation, useApiQuery } from '@/lib/query';
 import { colors, fonts, radius, shadow, space } from '@/theme/tokens';
@@ -42,6 +43,11 @@ const STATUS_COLOR: Record<AvailabilityStatus, string> = {
 
 /** Vendor calendar (spec §11): bookings, holds and personal time; drives "available on your date". */
 export default function VendorCalendar() {
+  const { google } = useLocalSearchParams<{ google?: string }>();
+  useEffect(() => {
+    if (google === 'connected') notify('יומן Google חובר', 'יומן "SOON" נוצר בחשבון Google שלכם ומתעדכן אוטומטית.');
+    else if (google === 'failed') notify('החיבור ל־Google נכשל', 'נסו שוב מתפריט הסנכרון.');
+  }, [google]);
   const q = useApiQuery<CalendarEntryDTO[]>(keys.calendar, '/api/calendar');
   const [month, setMonth] = useState(todayIso());
   const [selected, setSelected] = useState(todayIso());

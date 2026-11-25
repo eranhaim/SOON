@@ -13,6 +13,8 @@ import { businessRoutes } from './routes/business';
 import { coupleSocialRoutes } from './routes/couple-social';
 import { matchCallRoutes } from './routes/match-calls';
 import { adminPanelRoutes } from './routes/admin-panel';
+import { advisorRoutes } from './routes/advisor';
+import { googleCalendarRoutes } from './routes/google-calendar';
 import { billingRoutes, startRenewals } from './routes/billing';
 import { paymentRoutes } from './routes/payments';
 import { weddingSiteRoutes } from './routes/wedding-site';
@@ -85,6 +87,8 @@ export async function buildApp() {
   await app.register(paymentRoutes);
   await app.register(billingRoutes);
   await app.register(adminPanelRoutes);
+  await app.register(advisorRoutes);
+  await app.register(googleCalendarRoutes);
   const stopRenewals = startRenewals(app.log);
   app.addHook('onClose', async () => stopRenewals());
   if (env.DEMO_TOOLS) await app.register(demoRoutes);

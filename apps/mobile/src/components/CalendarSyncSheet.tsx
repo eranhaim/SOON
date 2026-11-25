@@ -1,7 +1,8 @@
-import { Linking, StyleSheet, View } from 'react-native';
+import { Linking, Platform, StyleSheet, View } from 'react-native';
 
 import type { VendorAccountDTO } from '@soon/shared';
 
+import { api, errorMessage } from '@/lib/api';
 import { confirm, notify } from '@/lib/confirm';
 import { keys, useApiMutation, useApiQuery } from '@/lib/query';
 import { colors, radius, space } from '@/theme/tokens';
@@ -17,6 +18,10 @@ import { Text } from './Text';
 export function CalendarSyncSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const q = useApiQuery<VendorAccountDTO>(keys.account, '/api/vendors/me/account', { enabled: visible });
   const rotate = useApiMutation<VendorAccountDTO>({ setData: keys.account });
+  const google = useApiQuery<{ available: boolean; connected: boolean; email: string | null; lastError: string | null }>(
+    ['google-calendar'],
+    visible ? '/api/vendors/me/google-calendar' : null,
+  );
   const url = q.data?.calendarFeedUrl ?? '';
   const webcal = url.replace(/^https?:\/\//, 'webcal://');
 
@@ -25,7 +30,55 @@ export function CalendarSyncSheet({ visible, onClose }: { visible: boolean; onCl
       <Text variant="bodySmall" color={colors.inkSoft}>
         האירועים, הפגישות והימים החסומים מ־SOON יופיעו ביומן שבטלפון ויתעדכנו לבד. כל אירוע מופיע פעם אחת ומתעדכן במקום — בלי כפילויות.
       </Text>
-      <Button label="הוספה ל־Google Calendar" icon="calendar" disabled={!url} onPress={() => Linking.openURL(`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}`)} />
+      {google.data?.available ? (
+        <View style={styles.google}>
+          <Text variant="label">{google.data.connected ? 'מחובר ליומן Google' : 'יומן Google נפרד (מומלץ)'}</Text>
+          <Text variant="caption" color={colors.inkSoft}>
+            {google.data.connected
+              ? `יומן "SOON" ב־${google.data.email ?? 'חשבון Google שלכם'} מתעדכן מיד בכל שינוי.`
+              : 'יוצר יומן "SOON" משלכם תחת "היומנים שלי" ב־Google, ומעדכן אותו מיד בכל שינוי.'}
+          </Text>
+          {google.data.lastError ? (
+            <Text variant="caption" color={colors.danger}>
+              {`הסנכרון האחרון נכשל: ${google.data.lastError}`}
+            </Text>
+          ) : null}
+          {google.data.connected ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              label="ניתוק"
+              onPress={async () => {
+                if (await confirm('ניתוק מ־Google', 'היומן יישאר ב־Google אבל יפסיק להתעדכן.', 'ניתוק')) {
+                  await api('/api/vendors/me/google-calendar', { method: 'DELETE' });
+                  await google.refetch();
+                }
+              }}
+            />
+          ) : (
+            <Button
+              label="חיבור ליומן Google"
+              icon="calendar"
+              onPress={async () => {
+                try {
+                  const { url: auth } = await api<{ url: string }>('/api/vendors/me/google-calendar/connect', { method: 'POST' });
+                  if (Platform.OS === 'web') window.location.href = auth;
+                  else await Linking.openURL(auth);
+                } catch (err) {
+                  notify('החיבור נכשל', errorMessage(err));
+                }
+              }}
+            />
+          )}
+        </View>
+      ) : null}
+      <Button
+        label={google.data?.available ? 'מנוי ב־Google Calendar (תחת "יומנים אחרים")' : 'הוספה ל־Google Calendar'}
+        icon="calendar"
+        variant={google.data?.available ? 'outline' : 'primary'}
+        disabled={!url}
+        onPress={() => Linking.openURL(`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}`)}
+      />
       <Button label="הוספה ליומן של iPhone / Apple" icon="smartphone" variant="outline" disabled={!url} onPress={() => Linking.openURL(webcal)} />
       <View style={styles.urlBox}>
         <Text variant="caption" color={colors.inkMuted}>
@@ -36,7 +89,7 @@ export function CalendarSyncSheet({ visible, onClose }: { visible: boolean; onCl
         </Text>
       </View>
       <Text variant="caption" color={colors.inkMuted}>
-        הכתובת פרטית. Google מרענן יומנים מנויים כל כמה שעות; Apple כל שעה. סנכרון דו־כיווני (אירועים מ־Google אל SOON) יתווסף בהמשך.
+        הכתובת פרטית. Google מרענן יומנים מנויים כל כמה שעות; Apple כל שעה.
       </Text>
       <Button
         label="יצירת כתובת חדשה"
@@ -54,6 +107,7 @@ export function CalendarSyncSheet({ visible, onClose }: { visible: boolean; onCl
 }
 
 const styles = StyleSheet.create({
+  google: { gap: space.sm, padding: space.md, borderRadius: radius.md, backgroundColor: colors.accentSoft },
   urlBox: { borderRadius: radius.md, gap: 4, padding: space.md, backgroundColor: colors.offWhite },
   url: { writingDirection: 'ltr', textAlign: 'left', color: colors.ink },
 });

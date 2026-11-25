@@ -46,6 +46,7 @@ import { badRequest, conflict, isCheckViolation, isExclusionViolation, isUuid, n
 import { parseBody, requireOwnVendor } from '../session';
 import { dayBounds } from '../services/availability';
 import { unreadTotal } from './conversations';
+import { deleteCalendarEntry, syncCalendarEntry } from './google-calendar';
 
 const BOOKED_CONFLICT = 'יש כבר אירוע סגור ביומן בזמן הזה';
 
@@ -449,6 +450,7 @@ export async function crmRoutes(app: FastifyInstance) {
           depositAgorot: b.deposit ?? null,
         })
         .returning({ id: availabilityEntry.id });
+      void syncCalendarEntry(ctx.vendor.id, row!.id, request.log);
       const [entry] = await listEntries(ctx.vendor.id, eq(availabilityEntry.id, row!.id));
       return reply.status(201).send(entry);
     });
@@ -489,6 +491,7 @@ export async function crmRoutes(app: FastifyInstance) {
         .where(and(eq(availabilityEntry.id, request.params.id), eq(availabilityEntry.vendorId, ctx.vendor.id)))
         .returning({ id: availabilityEntry.id });
       if (!row) return notFound(reply);
+      void syncCalendarEntry(ctx.vendor.id, row.id, request.log);
       const [entry] = await listEntries(ctx.vendor.id, eq(availabilityEntry.id, row.id));
       return entry;
     });
@@ -502,6 +505,7 @@ export async function crmRoutes(app: FastifyInstance) {
       .delete(availabilityEntry)
       .where(and(eq(availabilityEntry.id, request.params.id), eq(availabilityEntry.vendorId, ctx.vendor.id)))
       .returning({ id: availabilityEntry.id });
+    if (row) void deleteCalendarEntry(ctx.vendor.id, row.id, request.log);
     return row ? { ok: true } : notFound(reply);
   });
 
