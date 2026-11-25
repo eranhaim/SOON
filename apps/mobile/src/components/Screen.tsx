@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors, corners, shadow, space } from '@/theme/tokens';
+import { colors, shadow, space } from '@/theme/tokens';
 
 import { PressableScale } from './motion';
 import { Text } from './Text';
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   back: {
     width: 40,
     height: 40,
-    borderRadius: corners.iconButton,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface,

@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: space.xs },
   row: { flexDirection: 'row' },
   cell: { flex: 1, alignItems: 'center', paddingVertical: 2, minHeight: 44 },
-  day: { width: 34, height: 34, borderRadius: 0, alignItems: 'center', justifyContent: 'center' },
+  day: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   daySelected: { backgroundColor: colors.ink },
   dayToday: { borderWidth: 1, borderColor: colors.ink },
   dots: { flexDirection: 'row', gap: 2, height: 6, marginTop: 1 },

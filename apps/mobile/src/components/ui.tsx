@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'rea
 
 import { VENDOR_STATUS_LABELS, type ReadinessItem, type VendorStatus } from '@soon/shared';
 
-import { colors, corners, hairline, space } from '@/theme/tokens';
+import { colors, hairline, radius, shadow, space } from '@/theme/tokens';
 
 import { PressableScale } from './motion';
 import { Text } from './Text';
@@ -38,7 +38,7 @@ export function SectionTitle({ children, action, eyebrow }: { children: string; 
             {eyebrow}
           </Text>
         ) : null}
-        <Text variant="h2" style={{ fontSize: 22 }}>
+        <Text variant="h2" style={{ fontSize: 21 }}>
           {children}
         </Text>
       </View>
@@ -69,11 +69,11 @@ export function IconBadge({
   tone?: 'gold' | 'accent' | 'light';
   size?: number;
 }) {
-  const bg = tone === 'light' ? 'rgba(255,255,255,0.16)' : colors.offWhite;
-  const fg = tone === 'light' ? colors.inverse : colors.ink;
+  const bg = tone === 'gold' ? colors.goldSoft : tone === 'accent' ? colors.accentSoft : 'rgba(255,255,255,0.16)';
+  const fg = tone === 'gold' ? colors.gold : tone === 'accent' ? colors.accent : colors.inverse;
   return (
-    <View style={{ width: size, height: size, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-      <Feather name={icon} size={Math.round(size * 0.42)} color={fg} />
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+      <Feather name={icon} size={Math.round(size * 0.45)} color={fg} />
     </View>
   );
 }
@@ -110,9 +110,9 @@ export function ChipGroup({ children }: { children: ReactNode }) {
 }
 
 const STATUS_TONE: Record<VendorStatus, { bg: string; fg: string }> = {
-  draft: { bg: colors.offWhite, fg: colors.inkSoft },
-  pending: { bg: colors.offWhite, fg: colors.ink },
-  approved: { bg: colors.ink, fg: colors.inverse },
+  draft: { bg: colors.stone, fg: colors.inkSoft },
+  pending: { bg: colors.goldSoft, fg: '#7A5A22' },
+  approved: { bg: colors.successSoft, fg: colors.success },
   rejected: { bg: colors.dangerSoft, fg: colors.danger },
   suspended: { bg: colors.dangerSoft, fg: colors.danger },
 };
@@ -258,27 +258,29 @@ export function EmptyState({ icon, title, body, action }: { icon: IconName; titl
 
 const styles = StyleSheet.create({
   card: {
+    borderRadius: radius.lg,
     padding: space.lg,
     gap: space.md,
     backgroundColor: colors.surface,
     borderWidth: hairline,
-    borderColor: colors.line,
+    borderColor: 'rgba(205, 187, 160, 0.35)',
+    ...shadow.sm,
   },
   cardMuted: { backgroundColor: colors.offWhite, borderColor: 'transparent', boxShadow: 'none' },
   cardAccent: { backgroundColor: colors.accentSoft, borderColor: 'transparent', boxShadow: 'none' },
   sectionTitle: { flexDirection: 'row', alignItems: 'flex-end', gap: space.sm },
   divider: { height: hairline, backgroundColor: colors.line },
   ornamentRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  diamond: { width: 5, height: 5, backgroundColor: colors.ink, transform: [{ rotate: '45deg' }] },
+  diamond: { width: 7, height: 7, backgroundColor: colors.goldLight, transform: [{ rotate: '45deg' }] },
   chip: {
     paddingHorizontal: space.md,
     paddingVertical: 9,
     borderWidth: hairline,
     borderColor: colors.line,
-    borderRadius: corners.chip,
+    borderRadius: radius.pill,
     backgroundColor: colors.surface,
   },
-  chipSelected: { backgroundColor: colors.ink, borderColor: colors.ink },
+  chipSelected: { backgroundColor: colors.accent, borderColor: colors.accent, ...shadow.accent },
   chipGroup: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   badge: {
     alignSelf: 'flex-start',
@@ -287,7 +289,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: corners.chip,
+    borderRadius: radius.pill,
   },
   badgeDot: { width: 6, height: 6, borderRadius: 3 },
   row: {
@@ -298,12 +300,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xs,
     borderBottomWidth: hairline,
     borderBottomColor: colors.line,
+    borderRadius: radius.sm,
   },
   readinessRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   check: {
-    width: 18,
-    height: 18,
-    borderWidth: 1,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
     borderColor: colors.stoneDeep,
     alignItems: 'center',
     justifyContent: 'center',
@@ -311,24 +315,24 @@ const styles = StyleSheet.create({
   checkDone: { backgroundColor: colors.success, borderColor: colors.success },
   doneText: { textDecorationLine: 'line-through' },
   soon: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.md, padding: space.xl, minHeight: 420 },
-  soonHalo: { marginBottom: space.sm },
+  soonHalo: { padding: 14, borderRadius: 999, backgroundColor: 'rgba(243, 233, 215, 0.5)', marginBottom: space.sm },
   soonPill: {
     marginTop: space.sm,
     paddingHorizontal: space.md,
     paddingVertical: 6,
+    borderRadius: radius.pill,
     borderWidth: hairline,
-    borderColor: colors.ink,
+    borderColor: colors.goldLight,
   },
   iconBtn: {
     width: 38,
     height: 38,
-    borderRadius: corners.iconButton,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface,
-    borderWidth: hairline,
-    borderColor: colors.line,
+    ...shadow.sm,
   },
-  iconBtnDark: { backgroundColor: 'rgba(0, 0, 0, 0.55)', borderColor: 'transparent' },
+  iconBtnDark: { backgroundColor: 'rgba(36, 18, 15, 0.55)', boxShadow: 'none' },
   empty: { alignItems: 'center', gap: space.sm, paddingVertical: space.xxl, paddingHorizontal: space.lg },
 });

@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   bar: { height: 3, backgroundColor: colors.line },
   barFill: { height: 3, backgroundColor: colors.ink },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md, borderBottomWidth: hairline, borderBottomColor: colors.line },
-  check: { width: 22, height: 22, borderRadius: 0, borderWidth: 1, borderColor: colors.stoneDeep, alignItems: 'center', justifyContent: 'center' },
+  check: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: colors.stoneDeep, alignItems: 'center', justifyContent: 'center' },
   checkOn: { backgroundColor: colors.ink, borderColor: colors.ink },
   strike: { textDecorationLine: 'line-through' },
 });

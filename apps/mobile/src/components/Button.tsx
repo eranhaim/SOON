@@ -1,7 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import { ActivityIndicator, StyleSheet, View, type PressableProps, type ViewStyle } from 'react-native';
 
-import { colors, corners, hairline, shadow, space } from '@/theme/tokens';
+import { colors, hairline, radius, shadow, space } from '@/theme/tokens';
 
 import { PressableScale } from './motion';
 import { Text } from './Text';
@@ -21,8 +21,8 @@ type Props = Omit<PressableProps, 'style' | 'children'> & {
 const FG: Record<Variant, string> = {
   primary: colors.inverse,
   outline: colors.ink,
-  ghost: colors.ink,
-  soft: colors.ink,
+  ghost: colors.accent,
+  soft: colors.accent,
   light: colors.ink,
 };
 
@@ -52,18 +52,18 @@ export function Button({ label, variant = 'primary', loading, disabled, icon, si
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 52,
+    minHeight: 54,
     paddingHorizontal: space.lg,
-    borderRadius: corners.button,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sm: { minHeight: 38, paddingHorizontal: space.md },
+  sm: { minHeight: 40, paddingHorizontal: space.md },
   inner: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  primary: { backgroundColor: colors.ink },
-  outline: { backgroundColor: colors.surface, borderWidth: hairline, borderColor: colors.ink },
+  primary: { backgroundColor: colors.accent, ...shadow.accent },
+  outline: { backgroundColor: colors.surface, borderWidth: hairline, borderColor: colors.stoneDeep },
   ghost: { backgroundColor: 'transparent' },
-  soft: { backgroundColor: colors.offWhite },
+  soft: { backgroundColor: colors.accentSoft },
   light: { backgroundColor: colors.surface, ...shadow.md },
-  disabled: { opacity: 0.35 },
+  disabled: { opacity: 0.4, boxShadow: 'none' },
 });

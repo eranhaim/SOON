@@ -345,6 +345,6 @@ const styles = StyleSheet.create({
   itemNum: { fontFamily: fonts.display, fontSize: 20, lineHeight: 26, color: colors.ink },
   listCard: { paddingHorizontal: space.md, borderRadius: radius.lg, backgroundColor: colors.surface, ...shadow.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md, borderBottomWidth: hairline, borderBottomColor: colors.line },
-  check: { width: 24, height: 24, borderRadius: 0, borderWidth: 1.5, borderColor: colors.stoneDeep, alignItems: 'center', justifyContent: 'center' },
+  check: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: colors.stoneDeep, alignItems: 'center', justifyContent: 'center' },
   checkOn: { backgroundColor: colors.success, borderColor: colors.success },
 });

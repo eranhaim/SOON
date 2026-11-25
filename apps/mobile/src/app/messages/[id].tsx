@@ -15,7 +15,7 @@ import { Text } from '@/components/Text';
 import { api } from '@/lib/api';
 import { formatDay, formatTime } from '@/lib/dates';
 import { keys, useApiQuery } from '@/lib/query';
-import { colors, corners, fonts, shadow, space, textStart } from '@/theme/tokens';
+import { colors, fonts, radius, shadow, space, textStart } from '@/theme/tokens';
 
 /** One conversation (spec §8). Polls every few seconds, so both sides see new messages live. */
 export default function Thread() {
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingVertical: space.sm,
   },
-  back: { width: 40, height: 40, borderRadius: corners.iconButton, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow.sm },
+  back: { width: 40, height: 40, borderRadius: radius.round, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow.sm },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   context: {
     flexDirection: 'row',
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     marginHorizontal: space.lg,
     paddingHorizontal: space.md,
     paddingVertical: 8,
-    borderRadius: corners.chip,
+    borderRadius: radius.pill,
     backgroundColor: colors.goldSoft,
   },
   messages: { padding: space.lg, gap: space.sm, maxWidth: 720, width: '100%', alignSelf: 'center' },
@@ -197,9 +197,9 @@ const styles = StyleSheet.create({
   // RTL: my messages sit at the start (right) side.
   rowMine: { justifyContent: 'flex-start' },
   rowTheirs: { justifyContent: 'flex-end' },
-  bubble: { maxWidth: '80%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 0, gap: 2 },
-  mine: { backgroundColor: colors.accent, borderBottomRightRadius: 0 },
-  theirs: { backgroundColor: colors.surface, borderBottomLeftRadius: 0, ...shadow.sm },
+  bubble: { maxWidth: '80%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, gap: 2 },
+  mine: { backgroundColor: colors.accent, borderBottomRightRadius: 6 },
+  theirs: { backgroundColor: colors.surface, borderBottomLeftRadius: 6, ...shadow.sm },
   crm: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -230,8 +230,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.ink,
     backgroundColor: colors.surface,
-    borderRadius: corners.input,
+    borderRadius: radius.pill,
     ...shadow.sm,
   },
-  send: { width: 48, height: 48, borderRadius: corners.iconButton, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', ...shadow.accent },
+  send: { width: 48, height: 48, borderRadius: radius.round, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', ...shadow.accent },
 });

@@ -43,7 +43,7 @@ export default function Business() {
     <Screen eyebrow="ניהול העסק" title="העסק">
       <PressableScale onPress={go('/vendor/storefront')} style={styles.cover} accessibilityRole="button" accessibilityLabel="פרטי העסק">
         {vendor.coverUrl ? <Image source={vendor.coverUrl} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} /> : null}
-        <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.8)']} locations={[0.3, 1]} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={['rgba(36,18,15,0)', 'rgba(36,18,15,0.8)']} locations={[0.3, 1]} style={StyleSheet.absoluteFill} />
         <View style={styles.coverText}>
           <Text variant="eyebrow" color="rgba(255,255,255,0.75)">
             {vendor.categoryLabel}

@@ -19,7 +19,7 @@ import { VendorCard } from '@/components/VendorCard';
 import { SectionTitle } from '@/components/ui';
 import { formatDateTime, formatDayDots } from '@/lib/dates';
 import { keys, useApiQuery } from '@/lib/query';
-import { colors, corners, fonts, space } from '@/theme/tokens';
+import { colors, fonts, radius, space } from '@/theme/tokens';
 
 /** Couple home (spec §4): photo hero with countdown, progress tiles, nudges, personal feed. */
 export default function CoupleHome() {
@@ -53,7 +53,7 @@ export default function CoupleHome() {
         <View style={styles.hero}>
           <Image source={w.coverImageUrl ?? DEFAULT_COVER} style={StyleSheet.absoluteFill} contentFit="cover" transition={500} />
           <LinearGradient
-            colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.82)']}
+            colors={['rgba(36,18,15,0.45)', 'rgba(36,18,15,0)', 'rgba(36,18,15,0.15)', 'rgba(36,18,15,0.82)']}
             locations={[0, 0.25, 0.55, 1]}
             style={StyleSheet.absoluteFill}
           />
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   glass: {
     width: 40,
     height: 40,
-    borderRadius: corners.iconButton,
+    borderRadius: radius.round,
     backgroundColor: 'rgba(255,255,255,0.92)',
     alignItems: 'center',
     justifyContent: 'center',

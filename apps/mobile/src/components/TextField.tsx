@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
-import { colors, corners, fonts, hairline, space, textStart } from '@/theme/tokens';
+import { colors, fonts, hairline, radius, space, textStart } from '@/theme/tokens';
 
 import { Text } from './Text';
 
@@ -63,8 +63,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: hairline,
     borderColor: colors.line,
-    borderRadius: corners.input,
+    borderRadius: radius.md,
   },
-  inputFocused: { borderColor: colors.accent, boxShadow: '0 0 0 3px rgba(0, 0, 0, 0.06)' },
+  inputFocused: { borderColor: colors.accent, boxShadow: '0 0 0 3px rgba(110, 30, 58, 0.10)' },
   inputError: { borderColor: colors.danger },
 });

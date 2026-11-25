@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { colors, corners, fonts, shadow } from '@/theme/tokens';
+import { colors, fonts, radius, shadow } from '@/theme/tokens';
 
 import { PressableScale } from './motion';
 import { Text } from './Text';
@@ -38,7 +38,7 @@ export function Segmented<T extends string>({
 }
 
 const styles = StyleSheet.create({
-  wrap: { flexDirection: 'row', padding: 4, borderRadius: corners.chip, backgroundColor: colors.offWhite },
-  item: { flex: 1, paddingVertical: 10, borderRadius: corners.chip, alignItems: 'center' },
+  wrap: { flexDirection: 'row', padding: 4, borderRadius: radius.pill, backgroundColor: colors.offWhite },
+  item: { flex: 1, paddingVertical: 10, borderRadius: radius.pill, alignItems: 'center' },
   itemOn: { backgroundColor: colors.accent, ...shadow.accent },
 });

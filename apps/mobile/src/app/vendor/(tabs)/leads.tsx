@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   column: { gap: space.sm, padding: space.sm, borderRadius: radius.lg, backgroundColor: colors.offWhite, alignSelf: 'flex-start' },
   colHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.sm, paddingVertical: 6 },
   colDot: { width: 8, height: 8, borderRadius: 4 },
-  count: { minWidth: 24, height: 22, borderRadius: 0, paddingHorizontal: 6, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  count: { minWidth: 24, height: 22, borderRadius: 11, paddingHorizontal: 6, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   card: {
     gap: 6,
     padding: space.md,

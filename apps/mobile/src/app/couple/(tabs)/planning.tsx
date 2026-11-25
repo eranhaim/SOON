@@ -29,7 +29,7 @@ export default function Planning() {
     <Screen eyebrow="כלי תכנון" title="תכנון החתונה">
       <PressableScale onPress={() => router.push('/couple/planning/invitation' as Href)} style={styles.feature}>
         <Image source={PHOTOS.heroRings} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} />
-        <LinearGradient colors={['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.82)']} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={['rgba(36,18,15,0.2)', 'rgba(36,18,15,0.82)']} style={StyleSheet.absoluteFill} />
         <View style={styles.featureText}>
           <Text variant="eyebrow" color="rgba(255,255,255,0.8)">
             חדש · בינה מלאכותית

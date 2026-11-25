@@ -152,7 +152,7 @@ function Info({ icon, label, value }: { icon: 'calendar' | 'map-pin' | 'users' |
 const styles = StyleSheet.create({
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   info: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  infoIcon: { width: 28, height: 28, borderRadius: 0, backgroundColor: colors.goldSoft, alignItems: 'center', justifyContent: 'center' },
+  infoIcon: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.goldSoft, alignItems: 'center', justifyContent: 'center' },
   money: { flexDirection: 'row', gap: space.md },
   moneyNum: { fontFamily: fonts.display, fontSize: 24, lineHeight: 32, color: colors.ink },
   payment: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingVertical: 4, borderRadius: radius.sm },

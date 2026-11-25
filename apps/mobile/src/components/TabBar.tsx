@@ -43,10 +43,10 @@ export function AppTabs({ tabs }: { tabs: TabDef[] }) {
 const styles = StyleSheet.create({
   bar: {
     backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
+    borderTopWidth: 0,
     height: 66,
+    boxShadow: '0 -4px 24px rgba(60, 30, 20, 0.07)',
   },
   iconWrap: { alignItems: 'center', justifyContent: 'center', width: 44, height: 28 },
-  marker: { position: 'absolute', top: -13, width: 24, height: 2, backgroundColor: colors.ink },
+  marker: { position: 'absolute', top: -12, width: 22, height: 3, borderRadius: 2, backgroundColor: colors.accent },
 });

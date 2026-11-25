@@ -75,7 +75,7 @@ export default function ChooseRole() {
           style={styles.panel}>
           <Image source={p.image} style={StyleSheet.absoluteFill} contentFit="cover" transition={600} />
           <LinearGradient
-            colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.78)']}
+            colors={['rgba(36,18,15,0.05)', 'rgba(36,18,15,0.15)', 'rgba(36,18,15,0.78)']}
             locations={[0, 0.45, 1]}
             style={StyleSheet.absoluteFill}
           />
