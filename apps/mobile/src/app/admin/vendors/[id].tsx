@@ -13,7 +13,7 @@ import { Card, Divider, ReadinessList, SectionTitle, StatusBadge } from '@/compo
 import { api, errorMessage } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
 import { formatDate, formatDateTime } from '@/lib/dates';
-import { colors, space } from '@/theme/tokens';
+import { colors, radius, shadow, space } from '@/theme/tokens';
 
 const ACTION_LABELS: Record<string, string> = {
   'vendor.approve': 'אושר',
@@ -189,7 +189,7 @@ export default function AdminVendorReview() {
         </View>
 
         {/* Storefront exactly as couples will see it */}
-        <View style={{ flexGrow: 2, flexBasis: 420, borderWidth: 1, borderColor: colors.line, paddingBottom: space.lg }}>
+        <View style={{ flexGrow: 2, flexBasis: 420, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.surface, ...shadow.sm, paddingBottom: space.lg }}>
           <VendorPage vendor={vendor} />
         </View>
       </View>

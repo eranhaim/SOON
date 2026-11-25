@@ -9,7 +9,7 @@ import { Segmented } from '@/components/Segmented';
 import { Text } from '@/components/Text';
 import { Chip, ChipGroup } from '@/components/ui';
 import { keys, useApiQuery } from '@/lib/query';
-import { colors, fonts, space } from '@/theme/tokens';
+import { colors, fonts, radius, space } from '@/theme/tokens';
 
 type Metric = Exclude<keyof VendorWeekStat, 'weekStart'>;
 const METRICS: { key: Metric; label: string; hint: string }[] = [
@@ -105,12 +105,12 @@ function Conversion({ label, value, detail }: { label: string; value: number | n
 }
 
 const styles = StyleSheet.create({
-  totals: { flexDirection: 'row', flexWrap: 'wrap', borderWidth: 1, borderColor: colors.line },
+  totals: { borderRadius: radius.lg, overflow: 'hidden', flexDirection: 'row', flexWrap: 'wrap', borderWidth: 1, borderColor: colors.line },
   total: { width: '50%', padding: space.md, gap: 2 },
   totalSide: { borderRightWidth: 1, borderRightColor: colors.line },
   totalTop: { borderTopWidth: 1, borderTopColor: colors.line },
   totalNum: { fontFamily: fonts.display, fontSize: 28, lineHeight: 34, color: colors.ink },
-  conv: { flexDirection: 'row', gap: space.md, padding: space.lg, backgroundColor: colors.night },
+  conv: { borderRadius: radius.lg, flexDirection: 'row', gap: space.md, padding: space.lg, backgroundColor: colors.night },
   convRule: { width: 1, backgroundColor: 'rgba(255,255,255,0.2)' },
   convNum: { fontFamily: fonts.display, fontSize: 34, lineHeight: 42, color: colors.inverse },
   chartHead: { flexDirection: 'row', alignItems: 'flex-end', gap: space.md },

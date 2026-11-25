@@ -4,7 +4,7 @@ import type { VendorAccountDTO } from '@soon/shared';
 
 import { confirm, notify } from '@/lib/confirm';
 import { keys, useApiMutation, useApiQuery } from '@/lib/query';
-import { colors, space } from '@/theme/tokens';
+import { colors, radius, space } from '@/theme/tokens';
 
 import { Button } from './Button';
 import { Sheet } from './Sheet';
@@ -54,6 +54,6 @@ export function CalendarSyncSheet({ visible, onClose }: { visible: boolean; onCl
 }
 
 const styles = StyleSheet.create({
-  urlBox: { gap: 4, padding: space.md, backgroundColor: colors.offWhite },
+  urlBox: { borderRadius: radius.md, gap: 4, padding: space.md, backgroundColor: colors.offWhite },
   url: { writingDirection: 'ltr', textAlign: 'left', color: colors.ink },
 });

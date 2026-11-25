@@ -13,7 +13,7 @@ import { formatAgorot, formatPriceRange, regionLabel, type ReviewDTO, type Vendo
 
 import { formatDate } from '@/lib/dates';
 import { keys, useApiQuery } from '@/lib/query';
-import { atEnd, colors, fonts, hairline, space } from '@/theme/tokens';
+import { atEnd, colors, fonts, hairline, radius, space } from '@/theme/tokens';
 
 import { Text } from './Text';
 import { Divider, type IconName } from './ui';
@@ -436,15 +436,15 @@ const styles = StyleSheet.create({
   actionIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   section: { gap: space.md },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingBottom: space.sm, borderBottomWidth: 1, borderBottomColor: colors.ink },
-  edit: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: colors.line },
-  placeholder: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.md, backgroundColor: colors.offWhite },
+  edit: { borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: colors.line },
+  placeholder: { borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.md, backgroundColor: colors.offWhite },
   pkg: { gap: space.sm, paddingVertical: space.sm, borderBottomWidth: 1, borderBottomColor: colors.line },
   pkgHead: { flexDirection: 'row', alignItems: 'baseline', gap: space.md },
   price: { fontFamily: fonts.display, fontSize: 20, color: colors.ink },
   includeRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   reviewHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  addTile: { alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: colors.offWhite, borderWidth: 1, borderColor: colors.line, borderStyle: 'dashed' },
+  addTile: { borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: colors.offWhite, borderWidth: 1, borderColor: colors.line, borderStyle: 'dashed' },
   videoTile: { backgroundColor: colors.night, alignItems: 'center', justifyContent: 'center' },
   links: { flexDirection: 'row', gap: space.lg },
   linkOut: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: space.xs },

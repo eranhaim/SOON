@@ -9,7 +9,7 @@ import { Text } from '@/components/Text';
 import { confirm, notify } from '@/lib/confirm';
 import { formatDate } from '@/lib/dates';
 import { keys, useApiMutation, useApiQuery } from '@/lib/query';
-import { colors, fonts, space } from '@/theme/tokens';
+import { colors, fonts, radius, shadow, space } from '@/theme/tokens';
 
 /** App subscription: current plan, what each plan includes, and changing plan. */
 export default function Subscription() {
@@ -93,9 +93,9 @@ export default function Subscription() {
 }
 
 const styles = StyleSheet.create({
-  current: { backgroundColor: colors.night, padding: space.lg, gap: 4 },
+  current: { borderRadius: radius.lg, ...shadow.md, backgroundColor: colors.night, padding: space.lg, gap: 4 },
   currentName: { fontFamily: fonts.display, fontSize: 40, lineHeight: 48, color: colors.inverse },
-  plan: { gap: space.md, padding: space.lg, borderWidth: 1, borderColor: colors.line },
+  plan: { borderRadius: radius.lg, gap: space.md, padding: space.lg, borderWidth: 1, borderColor: colors.line },
   planOn: { borderColor: colors.ink, borderWidth: 2 },
   planHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
   planName: { fontFamily: fonts.displayMedium, fontSize: 24, color: colors.ink },

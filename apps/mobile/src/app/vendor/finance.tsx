@@ -37,7 +37,7 @@ import { confirm, notify } from '@/lib/confirm';
 import { formatDayDots } from '@/lib/dates';
 import { keys, useApiMutation, useApiQuery } from '@/lib/query';
 import { uploadFile, uploadImage } from '@/lib/upload';
-import { colors, fonts, space } from '@/theme/tokens';
+import { colors, fonts, radius, shadow, space } from '@/theme/tokens';
 
 type Tab = 'income' | 'expenses' | 'documents';
 type Range = 'month' | 'quarter' | 'year';
@@ -568,7 +568,7 @@ function Documents() {
 }
 
 const styles = StyleSheet.create({
-  hero: { backgroundColor: colors.night, padding: space.lg, gap: space.sm },
+  hero: { borderRadius: radius.lg, ...shadow.md, backgroundColor: colors.night, padding: space.lg, gap: space.sm },
   heroNum: { fontFamily: fonts.display, fontSize: 38, lineHeight: 46, color: colors.inverse },
   heroRow: { flexDirection: 'row', gap: space.md, marginTop: space.sm },
   blockHead: { paddingBottom: space.sm, borderBottomWidth: 1, borderBottomColor: colors.ink },
@@ -576,9 +576,9 @@ const styles = StyleSheet.create({
   amount: { fontFamily: fonts.display, fontSize: 17, color: colors.ink },
   sumRow: { flexDirection: 'row', alignItems: 'flex-end', gap: space.md },
   big: { fontFamily: fonts.display, fontSize: 32, lineHeight: 40, color: colors.ink },
-  cats: { gap: 8, padding: space.md, backgroundColor: colors.offWhite },
+  cats: { borderRadius: radius.md, gap: 8, padding: space.md, backgroundColor: colors.offWhite },
   catRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  catBar: { height: 6, backgroundColor: colors.ink },
+  catBar: { borderRadius: 3, height: 6, backgroundColor: colors.accent },
   tr: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.line, minHeight: 44, alignItems: 'center' },
   th: { borderBottomColor: colors.ink, backgroundColor: colors.offWhite },
   tfoot: { borderTopWidth: 1, borderTopColor: colors.ink, borderBottomWidth: 0 },
@@ -589,7 +589,7 @@ const styles = StyleSheet.create({
   cCat: { width: 110 },
   cAmount: { width: 100 },
   cFile: { width: 56 },
-  attach: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.sm, backgroundColor: colors.offWhite },
-  notice: { flexDirection: 'row', gap: space.sm, padding: space.md, backgroundColor: colors.offWhite },
+  attach: { borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.sm, backgroundColor: colors.offWhite },
+  notice: { borderRadius: radius.md, flexDirection: 'row', gap: space.sm, padding: space.md, backgroundColor: colors.offWhite },
   docBadge: { width: 84, gap: 2 },
 });

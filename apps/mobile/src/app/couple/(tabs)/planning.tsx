@@ -12,7 +12,7 @@ import { Text } from '@/components/Text';
 import { ListRow } from '@/components/ui';
 import { formatDateTime } from '@/lib/dates';
 import { keys, useApiQuery } from '@/lib/query';
-import { colors, fonts, PHOTOS, space } from '@/theme/tokens';
+import { colors, fonts, PHOTOS, radius, shadow, space } from '@/theme/tokens';
 
 /**
  * Planning (spec §2): one ordered list of tools, grouped — deliberately different from the
@@ -113,7 +113,7 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 }
 
 const styles = StyleSheet.create({
-  feature: { height: 300, overflow: 'hidden', backgroundColor: colors.night, justifyContent: 'flex-end' },
+  feature: { borderRadius: radius.lg, ...shadow.md, height: 300, overflow: 'hidden', backgroundColor: colors.night, justifyContent: 'flex-end' },
   featureText: { padding: space.lg, gap: space.sm },
   featureTitle: { fontFamily: fonts.display, fontSize: 30, lineHeight: 38 },
   featureCta: {

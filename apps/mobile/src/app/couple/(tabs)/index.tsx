@@ -19,7 +19,7 @@ import { VendorCard } from '@/components/VendorCard';
 import { SectionTitle } from '@/components/ui';
 import { formatDateTime, formatDayDots } from '@/lib/dates';
 import { keys, useApiQuery } from '@/lib/query';
-import { colors, fonts, radius, space } from '@/theme/tokens';
+import { colors, fonts, radius, shadow, space } from '@/theme/tokens';
 
 /** Couple home (spec §4): photo hero with countdown, progress tiles, nudges, personal feed. */
 export default function CoupleHome() {
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   date: { fontFamily: fonts.bodyMedium, fontSize: 13, letterSpacing: 3, marginTop: 4 },
   hebDate: { fontFamily: fonts.body, fontSize: 13, letterSpacing: 0.5 },
   body: { paddingHorizontal: space.lg, paddingBottom: space.xxxl, gap: space.xl, marginTop: -44, maxWidth: 720, width: '100%', alignSelf: 'center' },
-  tilesCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
+  tilesCard: { backgroundColor: colors.surface, borderRadius: radius.lg, overflow: 'hidden', ...shadow.md },
   tilesRow: { flexDirection: 'row' },
   vRule: { width: 1, backgroundColor: colors.line },
   hRule: { height: 1, backgroundColor: colors.line },
@@ -305,13 +305,14 @@ const styles = StyleSheet.create({
     gap: space.md,
     backgroundColor: colors.offWhite,
     padding: space.md,
+    borderRadius: radius.md,
   },
-  insightIcon: { width: 28, height: 28, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  insightIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.goldSoft, alignItems: 'center', justifyContent: 'center' },
   cat: {
     paddingHorizontal: space.md,
     paddingVertical: 12,
+    borderRadius: radius.pill,
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
+    ...shadow.sm,
   },
 });

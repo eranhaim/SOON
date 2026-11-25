@@ -151,8 +151,8 @@ function Row({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   sectionTitle: { paddingBottom: space.sm, borderBottomWidth: 1, borderBottomColor: colors.ink },
   toggle: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 6 },
-  track: { width: 46, height: 26, padding: 3, borderWidth: 1, borderColor: colors.stoneDeep, backgroundColor: colors.surface, justifyContent: 'center' },
-  trackOn: { backgroundColor: colors.ink, borderColor: colors.ink },
-  thumb: { width: 18, height: 18, backgroundColor: colors.stoneDeep },
+  track: { borderRadius: 13, width: 46, height: 26, padding: 3, borderWidth: 1, borderColor: colors.stoneDeep, backgroundColor: colors.surface, justifyContent: 'center' },
+  trackOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  thumb: { borderRadius: 9, width: 18, height: 18, backgroundColor: colors.stoneDeep },
   thumbOn: { backgroundColor: colors.inverse },
 });

@@ -20,7 +20,7 @@ import { notify } from '@/lib/confirm';
 import { formatDayDots } from '@/lib/dates';
 import { keys, useApiQuery } from '@/lib/query';
 import { useOwnWedding } from '@/lib/wedding';
-import { colors, fonts, space } from '@/theme/tokens';
+import { colors, fonts, radius, shadow, space } from '@/theme/tokens';
 
 const WEEKDAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 const weekday = (iso: string) => `יום ${WEEKDAYS[new Date(`${iso}T12:00:00Z`).getUTCDay()]}`;
@@ -257,11 +257,11 @@ function InvitationCard({ inv }: { inv: InvitationDTO }) {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: space.md },
   actions: { flexDirection: 'row', gap: space.sm },
-  card: { backgroundColor: colors.surface, padding: 10, borderWidth: 1, borderColor: colors.line },
-  inner: { borderWidth: 1, borderColor: colors.ink, paddingVertical: space.xl, paddingHorizontal: space.lg, gap: space.sm, alignItems: 'center' },
+  card: { borderRadius: radius.lg, ...shadow.md, backgroundColor: colors.surface, padding: 10, borderWidth: 0 },
+  inner: { borderRadius: radius.md, borderWidth: 1, borderColor: colors.goldLight, paddingVertical: space.xl, paddingHorizontal: space.lg, gap: space.sm, alignItems: 'center' },
   opening: { fontFamily: fonts.body, fontSize: 13, letterSpacing: 1.5, color: colors.inkSoft },
   names: { fontFamily: fonts.display, fontSize: 40, lineHeight: 48, color: colors.ink, marginVertical: space.sm },
-  rule: { width: 40, height: 1, backgroundColor: colors.ink, marginVertical: space.sm },
+  rule: { width: 40, height: 1, backgroundColor: colors.gold, marginVertical: space.sm },
   body: { fontFamily: fonts.body, fontSize: 15, lineHeight: 24, color: colors.ink, maxWidth: 320 },
   weekday: { fontFamily: fonts.body, fontSize: 12, letterSpacing: 2, color: colors.inkSoft },
   date: { fontFamily: fonts.displayLight, fontSize: 30, letterSpacing: 4, color: colors.ink },

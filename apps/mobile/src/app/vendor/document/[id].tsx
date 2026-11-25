@@ -9,7 +9,7 @@ import { Loading, Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { formatDayDots } from '@/lib/dates';
 import { useApiQuery } from '@/lib/query';
-import { colors, fonts, space } from '@/theme/tokens';
+import { colors, fonts, radius, shadow, space } from '@/theme/tokens';
 
 /** One issued document, laid out for print / PDF, with share, email and WhatsApp. */
 export default function DocumentView() {
@@ -121,7 +121,7 @@ export default function DocumentView() {
 }
 
 const styles = StyleSheet.create({
-  paper: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line, padding: space.lg, gap: space.sm },
+  paper: { borderRadius: radius.md, ...shadow.sm, backgroundColor: colors.surface, borderWidth: 0, padding: space.lg, gap: space.sm },
   head: { flexDirection: 'row', gap: space.md },
   biz: { fontFamily: fonts.displayMedium, fontSize: 20, color: colors.ink },
   kind: { fontFamily: fonts.display, fontSize: 24, color: colors.ink },

@@ -15,7 +15,7 @@ import { resetDemo, signInDemo, signOutToStart } from '@/lib/demo';
 import { keys, useApiQuery } from '@/lib/query';
 import { useSessionUser } from '@/lib/session';
 import { useOwnVendor } from '@/lib/vendor-context';
-import { colors, fonts, space } from '@/theme/tokens';
+import { colors, fonts, radius, shadow, space } from '@/theme/tokens';
 
 const go = (href: string) => () => router.push(href as Href);
 
@@ -124,7 +124,7 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 }
 
 const styles = StyleSheet.create({
-  cover: { height: 210, overflow: 'hidden', backgroundColor: colors.night },
+  cover: { borderRadius: radius.lg, ...shadow.md, height: 210, overflow: 'hidden', backgroundColor: colors.night },
   coverText: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: space.lg, gap: 4 },
   coverRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md },
   name: { fontFamily: fonts.display, fontSize: 30, lineHeight: 38 },
