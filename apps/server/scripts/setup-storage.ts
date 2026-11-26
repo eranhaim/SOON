@@ -26,6 +26,7 @@ const s3 = new S3Client({
 
 const ALLOWED_ORIGINS = [
   'http://localhost:8081',
+  'https://lovesoon.online',
   'https://soon.64.176.175.97.nip.io',
   ...(process.env.EXTRA_CORS_ORIGINS?.split(',').map((s) => s.trim()).filter(Boolean) ?? []),
 ];
