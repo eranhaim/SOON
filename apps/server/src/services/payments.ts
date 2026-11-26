@@ -85,7 +85,9 @@ async function upay<T>(mainaction: string, minoraction: string, parameters: Reco
     { header, request: { mainaction, minoraction, encoding: 'json', parameters: { ...login, ...parameters } } },
   ];
   const body = new URLSearchParams({ msgs: JSON.stringify(msgs) });
-  const res = await fetch(`${UPAY_BASE}/API6/client/json.php`, { method: 'POST', body, signal: AbortSignal.timeout(30_000) });
+  // Every batch starts with CONNECTION/LOGIN, a secure action: it must go to the clientsecure endpoint
+  // (the plain client endpoint answers PERMISSION_DENIED).
+  const res = await fetch(`${UPAY_BASE}/API6/clientsecure/json.php`, { method: 'POST', body, signal: AbortSignal.timeout(30_000) });
   if (!res.ok) throw new Error(`Upay HTTP ${res.status}`);
   const data = (await res.json()) as { results?: UpayResponse<T>[] };
   const [loginRes, actionRes] = data.results ?? [];
