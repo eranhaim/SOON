@@ -6,20 +6,23 @@ import type { AppSettingsDTO } from '@soon/shared';
 import { AdminNav } from '@/components/AdminNav';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
+import { GoogleLinkRow } from '@/components/SocialButtons';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
 import { Card, SectionTitle } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
 import { notify } from '@/lib/confirm';
 import { useApiMutation, useApiQuery } from '@/lib/query';
+import { useAuthProviders } from '@/lib/social';
 import { colors, space } from '@/theme/tokens';
 
 const KEY = ['admin-settings'];
 
-/** Platform settings: the service fee on gifts (SOON's revenue on the wedding site). */
+/** Platform settings: the service fee on gifts (SOON's revenue on the wedding site); the admin's Google link. */
 export default function AdminSettings() {
   const q = useApiQuery<AppSettingsDTO>(KEY, '/api/admin/settings');
   const m = useApiMutation<AppSettingsDTO>({ setData: KEY });
+  const providers = useAuthProviders();
   const [pct, setPct] = useState<string | null>(null);
   const value = pct ?? (q.data ? String(q.data.giftFeeBps / 100) : '');
   const bps = Math.round(Number(value) * 100);
@@ -56,6 +59,12 @@ export default function AdminSettings() {
           style={{ alignSelf: 'flex-start' }}
         />
       </Card>
+      {providers.includes('google') ? (
+        <Card style={{ gap: space.sm }}>
+          <SectionTitle>החשבון שלי</SectionTitle>
+          <GoogleLinkRow path="/admin/settings" />
+        </Card>
+      ) : null}
     </Screen>
   );
 }
