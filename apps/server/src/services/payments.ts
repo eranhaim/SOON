@@ -147,6 +147,19 @@ export async function createCheckout(o: {
   if (payments.mode === 'test') return { url: testPageUrl(ref, o.amountAgorot, o.description, o.returnUrl, 'pay'), providerRef: null };
   if (payments.mode === 'redirect') return { url: redirectGoUrl(ref), providerRef: null };
   if (payments.mode !== 'api') throw new Error('Payments are off');
+  try {
+    return await apiCheckout(ref, o);
+  } catch (err) {
+    // The payment-button page needs no login: keep gifts working if the API call fails.
+    console.warn('[payments] Upay API checkout failed, using the payment-button page:', err instanceof Error ? err.message : err);
+    return { url: redirectGoUrl(ref), providerRef: null };
+  }
+}
+
+async function apiCheckout(
+  ref: string,
+  o: { amountAgorot: number; description: string; returnUrl: string; payerPhone?: string | null },
+): Promise<{ url: string; providerRef: string | null }> {
   const r = await upay<{ transactions: { cashierid: number; totalamount: string; url: string }[] }>(
     'CASHIER',
     'REDIRECTDEPOSITCREDITCARDTRANSFER',

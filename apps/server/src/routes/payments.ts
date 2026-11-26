@@ -133,7 +133,8 @@ export async function paymentRoutes(app: FastifyInstance) {
         `.c{max-width:360px;padding:32px}button{margin-top:16px;padding:14px 28px;border:0;border-radius:999px;background:#6E1E3A;color:#fff;font-size:16px;cursor:pointer}</style></head>` +
         `<body><div class="c">${body}</div></body></html>`,
     );
-    if (payments.mode !== 'redirect' || !target) return page('<h2>הקישור לא תקין</h2>');
+    // Redirect mode, or the API mode's fallback when an API call failed.
+    if ((payments.mode !== 'redirect' && payments.mode !== 'api') || !target) return page('<h2>הקישור לא תקין</h2>');
     const p = await payable(target.kind, target.id);
     if (!p) return page('<h2>התשלום הזה כבר הושלם או בוטל</h2>');
     const form = upayRedirectForm({ ref, ...p });
