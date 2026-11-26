@@ -36,8 +36,12 @@ export const payments = {
   live,
   /** Our own test page instead of Upay. */
   testMode: mode === 'test',
-  /** Saved cards and automatic monthly charges (Upay API, or the test page). */
-  supportsTokens: mode === 'api' || mode === 'test',
+  /**
+   * Saved cards and automatic monthly charges. Test mode only for now: Upay's card-save action
+   * (REDIRECTSETMYCREDITCARDDETAILS) sets the *account's own* card, so it must not be used for
+   * vendors' cards until Upay confirms a customer-card flow.
+   */
+  supportsTokens: mode === 'test',
   get available() {
     return this.live || this.testMode;
   },
@@ -91,9 +95,12 @@ async function upay<T>(mainaction: string, minoraction: string, parameters: Reco
   if (!res.ok) throw new Error(`Upay HTTP ${res.status}`);
   const data = (await res.json()) as { results?: UpayResponse<T>[] };
   const [loginRes, actionRes] = data.results ?? [];
-  if (!loginRes?.success) throw new Error(`Upay login failed: ${loginRes?.header?.errormessage ?? 'no response'}`);
-  if (!actionRes?.success) throw new Error(`Upay ${minoraction} failed: ${actionRes?.header?.errormessage ?? 'no response'}`);
-  return actionRes.result;
+  // Upay answers success:true even for refused actions; the real outcome is the message code (…_OK).
+  const ok = (x?: UpayResponse<unknown>) => Boolean(x?.success && (/_OK$/.test(x.header?.errormessage ?? '') || x.header?.errorcode === '1000000'));
+  const why = (x?: UpayResponse<unknown>) => (x ? `${x.header?.errormessage} (${x.header?.errorcode}): ${x.header?.errordescription}` : 'no response');
+  if (!ok(loginRes)) throw new Error(`Upay login failed: ${why(loginRes)}`);
+  if (!ok(actionRes)) throw new Error(`Upay ${minoraction} failed: ${why(actionRes)}`);
+  return actionRes!.result;
 }
 
 const shekels = (agorot: number) => Math.round(agorot) / 100;
@@ -149,14 +156,19 @@ export async function createCheckout(o: {
   if (payments.mode === 'test') return { url: testPageUrl(ref, o.amountAgorot, o.description, o.returnUrl, 'pay'), providerRef: null };
   if (payments.mode === 'redirect') return { url: redirectGoUrl(ref), providerRef: null };
   if (payments.mode !== 'api') throw new Error('Payments are off');
+  // After a failed API checkout, use the payment-button page for a while (no slow failing calls).
+  if (Date.now() < apiCheckoutPausedUntil) return { url: redirectGoUrl(ref), providerRef: null };
   try {
     return await apiCheckout(ref, o);
   } catch (err) {
+    apiCheckoutPausedUntil = Date.now() + 10 * 60_000;
     // The payment-button page needs no login: keep gifts working if the API call fails.
     console.warn('[payments] Upay API checkout failed, using the payment-button page:', err instanceof Error ? err.message : err);
     return { url: redirectGoUrl(ref), providerRef: null };
   }
 }
+
+let apiCheckoutPausedUntil = 0;
 
 async function apiCheckout(
   ref: string,
