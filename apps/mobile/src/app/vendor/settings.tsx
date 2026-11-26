@@ -7,6 +7,7 @@ import { Button } from '@/components/Button';
 import { resetGuides } from '@/components/GuideHost';
 import { LangSwitch } from '@/components/LangSwitch';
 import { Loading, Screen } from '@/components/Screen';
+import { GoogleLinkRow } from '@/components/SocialButtons';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
 import { TimeSelect } from '@/components/TimeSelect';
@@ -17,6 +18,7 @@ import { notify } from '@/lib/confirm';
 import { signOutToStart } from '@/lib/demo';
 import { keys, useApiMutation, useApiQuery } from '@/lib/query';
 import { useSessionUser } from '@/lib/session';
+import { useLinkedAccounts } from '@/lib/social';
 import { colors, fonts, space } from '@/theme/tokens';
 
 const DAY_NAMES = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
@@ -26,6 +28,7 @@ export default function Settings() {
   const q = useApiQuery<VendorAccountDTO>(keys.account, '/api/vendors/me/account');
   const m = useApiMutation<VendorAccountDTO>({ setData: keys.account });
   const { user } = useSessionUser();
+  const accounts = useLinkedAccounts();
   const [invoice, setInvoice] = useState<{ taxId: string; address: string } | null>(null);
   const [pw, setPw] = useState({ current: '', next: '' });
   const [pwBusy, setPwBusy] = useState(false);
@@ -137,9 +140,15 @@ export default function Settings() {
 
       <Section title="חשבון">
         <Row label="אימייל" value={user?.email ?? ''} />
-        <TextField label="סיסמה נוכחית" ltr secureTextEntry value={pw.current} onChangeText={(current) => setPw({ ...pw, current })} />
-        <TextField label="סיסמה חדשה" ltr secureTextEntry value={pw.next} onChangeText={(next) => setPw({ ...pw, next })} />
-        <Button label="שינוי סיסמה" variant="outline" loading={pwBusy} disabled={!pw.current || !pw.next} onPress={changePassword} />
+        <GoogleLinkRow path="/vendor/settings" />
+        {/* Accounts that sign in only with Google have no password to change. */}
+        {accounts.data?.includes('credential') ? (
+          <>
+            <TextField label="סיסמה נוכחית" ltr secureTextEntry value={pw.current} onChangeText={(current) => setPw({ ...pw, current })} />
+            <TextField label="סיסמה חדשה" ltr secureTextEntry value={pw.next} onChangeText={(next) => setPw({ ...pw, next })} />
+            <Button label="שינוי סיסמה" variant="outline" loading={pwBusy} disabled={!pw.current || !pw.next} onPress={changePassword} />
+          </>
+        ) : null}
       </Section>
 
       <Section title="מדריכים">

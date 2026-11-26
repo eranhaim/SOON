@@ -10,6 +10,7 @@ import { CoverPicker } from '@/components/CoverPicker';
 import { resetGuides } from '@/components/GuideHost';
 import { PressableScale, Reveal } from '@/components/motion';
 import { Screen } from '@/components/Screen';
+import { GoogleLinkRow } from '@/components/SocialButtons';
 import { Text } from '@/components/Text';
 import { Card, ListRow } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -82,6 +83,7 @@ export default function Profile() {
           />
           <ListRow icon="camera" label="תמונת רקע" hint="החליפו את התמונה במסך הבית" onPress={() => setCoverOpen(true)} />
           <ListRow icon="users" label="קהילת זוגות" hint="התייעצו עם זוגות אחרים שמתחתנים" onPress={() => router.push('/couple/community' as Href)} />
+          <GoogleLinkRow path="/couple/profile" />
           <ListRow
             icon="compass"
             label="הצגת המדריכים מחדש"

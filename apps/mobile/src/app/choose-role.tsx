@@ -13,8 +13,8 @@ import { LangSwitch } from '@/components/LangSwitch';
 import { Logo } from '@/components/Logo';
 import { PressableScale, Reveal } from '@/components/motion';
 import { Sheet } from '@/components/Sheet';
+import { SocialButtons } from '@/components/SocialButtons';
 import { Text } from '@/components/Text';
-import { signInDemo } from '@/lib/demo';
 import { atEnd, colors, fonts, photo, space } from '@/theme/tokens';
 
 type Side = Extract<UserRole, 'couple' | 'vendor'>;
@@ -45,23 +45,8 @@ const PANELS: { side: Side; n: string; title: string; subtitle: string; image: s
 export default function ChooseRole() {
   const insets = useSafeAreaInsets();
   const [side, setSide] = useState<Side | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string>();
   const panel = PANELS.find((p) => p.side === side);
-
-  async function demo(provider: string) {
-    if (!side) return;
-    setError(undefined);
-    setBusy(provider);
-    try {
-      await signInDemo(side);
-      setSide(null);
-    } catch {
-      setError('ההתחברות נכשלה. נסו שוב.');
-    } finally {
-      setBusy(null);
-    }
-  }
 
   return (
     <View style={styles.root}>
@@ -71,7 +56,10 @@ export default function ChooseRole() {
           scaleTo={0.985}
           accessibilityRole="button"
           accessibilityLabel={p.title}
-          onPress={() => setSide(p.side)}
+          onPress={() => {
+            setError(undefined);
+            setSide(p.side);
+          }}
           style={styles.panel}>
           <Image source={p.image} style={StyleSheet.absoluteFill} contentFit="cover" transition={600} />
           <LinearGradient
@@ -106,17 +94,9 @@ export default function ChooseRole() {
 
       <Sheet visible={!!side} onClose={() => setSide(null)} eyebrow={panel?.label} title="ברוכים הבאים">
         <Text variant="bodySmall" color={colors.inkSoft} style={{ marginTop: -space.sm }}>
-          זו גרסת דמו: הכניסה עם Apple או Google פותחת חשבון לדוגמה.
+          {side === 'vendor' ? 'כניסה או הרשמה לעסק שלכם.' : 'כניסה או הרשמה, ומתחילים לתכנן.'}
         </Text>
-        <Button label="המשך עם Apple" icon="smartphone" loading={busy === 'apple'} onPress={() => demo('apple')} style={styles.apple} />
-        <Button label="המשך עם Google" variant="outline" icon="globe" loading={busy === 'google'} onPress={() => demo('google')} />
-        <View style={styles.or}>
-          <View style={styles.orRule} />
-          <Text variant="caption" color={colors.inkMuted}>
-            או
-          </Text>
-          <View style={styles.orRule} />
-        </View>
+        <SocialButtons role={side ?? undefined} divider onError={setError} />
         <Button
           label="המשך עם אימייל"
           variant="soft"
@@ -145,7 +125,4 @@ const styles = StyleSheet.create({
   panelSub: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   logoWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center', gap: 6 },
   lang: { position: 'absolute' },
-  apple: { backgroundColor: colors.night, boxShadow: 'none' },
-  or: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  orRule: { flex: 1, height: 1, backgroundColor: colors.line },
 });

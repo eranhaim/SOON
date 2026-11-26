@@ -132,6 +132,7 @@ export function StatusBadge({ status }: { status: VendorStatus }) {
 /** Menu row: icon badge, label, optional hint, chevron. */
 export function ListRow({
   icon,
+  leading,
   label,
   hint,
   onPress,
@@ -139,6 +140,8 @@ export function ListRow({
   trailing,
 }: {
   icon?: IconName;
+  /** Replaces the icon badge (for example a brand mark). */
+  leading?: ReactNode;
   label: string;
   hint?: string;
   onPress?: () => void;
@@ -147,7 +150,7 @@ export function ListRow({
 }) {
   const content = (
     <>
-      {icon ? <IconBadge icon={icon} size={38} /> : null}
+      {leading ?? (icon ? <IconBadge icon={icon} size={38} /> : null)}
       <View style={{ flex: 1, gap: 2 }}>
         <Text variant="body" style={{ fontFamily: 'Heebo_500Medium' }}>
           {label}

@@ -18,6 +18,8 @@ if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
   socialProviders.google = {
     clientId: env.GOOGLE_CLIENT_ID,
     clientSecret: env.GOOGLE_CLIENT_SECRET,
+    // Couples often have a personal and a work Google account: always let them choose.
+    prompt: 'select_account',
   };
 }
 if (env.APPLE_CLIENT_ID && env.APPLE_CLIENT_SECRET) {

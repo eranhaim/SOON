@@ -2,51 +2,42 @@ import Feather from '@expo/vector-icons/Feather';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { USER_ROLES, type UserRole } from '@soon/shared';
 
 import { Button } from '@/components/Button';
+import { Logo } from '@/components/Logo';
+import { Reveal } from '@/components/motion';
+import { SocialButtons } from '@/components/SocialButtons';
 import { Text } from '@/components/Text';
 import { TextField } from '@/components/TextField';
 import { api } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
 import { homeForRole } from '@/lib/session';
-import { Logo } from '@/components/Logo';
-import { Reveal } from '@/components/motion';
-import { colors, fonts, hairline, PHOTOS, radius, space } from '@/theme/tokens';
+import { safeNext, socialErrorText } from '@/lib/social';
+import { colors, fonts, PHOTOS, radius, space } from '@/theme/tokens';
 
 const TOO_MANY = 'יותר מדי ניסיונות. נסו שוב בעוד דקה.';
 /** Must match emailAndPassword.minPasswordLength in apps/server/src/auth.ts. */
 const MIN_PASSWORD = 6;
 
-type Provider = 'google' | 'apple';
-const PROVIDER_LABEL: Record<Provider, string> = {
-  google: 'המשך עם Google',
-  apple: 'המשך עם Apple',
-};
-
 export default function SignIn() {
-  const params = useLocalSearchParams<{ role?: string; next?: string; mode?: string }>();
+  const params = useLocalSearchParams<{ role?: string; next?: string; mode?: string; error?: string }>();
   const role = USER_ROLES.includes(params.role as UserRole) ? (params.role as UserRole) : undefined;
   /** Where to go after signing in (a vendor page, an invite). Only paths inside the app. */
-  const next = params.next && /^\/(?![/\\])/.test(params.next) ? params.next : null;
+  const next = safeNext(params.next);
 
-  const [providers, setProviders] = useState<Provider[]>([]);
   const [mode, setMode] = useState<'signin' | 'signup'>(params.mode === 'signup' ? 'signup' : 'signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
-
-  useEffect(() => {
-    api<{ authProviders: Provider[] }>('/api/meta')
-      .then((m) => setProviders(m.authProviders))
-      .catch(() => setProviders([]));
-  }, []);
+  /** A failed Google / Apple sign-in comes back here with ?error=<code>. */
+  const [socialError, setSocialError] = useState(() => socialErrorText(params.error));
 
   /** After any successful sign-in: persist the chosen role (first time only), then route by role. */
   async function finish() {
@@ -85,15 +76,6 @@ export default function SignIn() {
   function switchMode() {
     setError(undefined);
     setMode(mode === 'signin' ? 'signup' : 'signin');
-  }
-
-  async function social(provider: Provider) {
-    setError(undefined);
-    const { error: err } = await authClient.signIn.social({
-      provider,
-      callbackURL: role ? `/home?role=${role}` : '/home',
-    });
-    if (err) setError('ההתחברות נכשלה. נסו שוב.');
   }
 
   return (
@@ -135,24 +117,18 @@ export default function SignIn() {
             </Text>
           </Reveal>
 
-          {providers.length > 0 && (
-            <>
-              <View style={styles.stack}>
-                {providers.map((p) => (
-                  <Button key={p} variant="outline" label={PROVIDER_LABEL[p]} onPress={() => social(p)} />
-                ))}
-              </View>
-              <View style={styles.divider}>
-                <View style={styles.rule} />
-                <Text variant="caption" color={colors.inkMuted}>
-                  או
-                </Text>
-                <View style={styles.rule} />
-              </View>
-            </>
-          )}
+          {socialError ? (
+            <View style={styles.notice} accessibilityRole="alert">
+              <Feather name="alert-circle" size={18} color={colors.danger} />
+              <Text variant="bodySmall" color={colors.ink} style={{ flex: 1 }}>
+                {socialError}
+              </Text>
+            </View>
+          ) : null}
 
-          <View style={styles.stack}>
+          <SocialButtons role={role} next={next} divider onError={setSocialError} />
+
+          <View style={[styles.stack, { marginTop: space.md }]}>
             {mode === 'signup' && (
               <TextField label="שם מלא" value={name} onChangeText={setName} autoComplete="name" />
             )}
@@ -204,6 +180,13 @@ const styles = StyleSheet.create({
   content: { padding: space.lg, paddingTop: 0, marginTop: -space.lg, gap: space.sm, maxWidth: 480, width: '100%', alignSelf: 'center' },
   lead: { marginBottom: space.lg },
   stack: { gap: space.md },
-  divider: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginVertical: space.lg },
-  rule: { flex: 1, height: hairline, backgroundColor: colors.line },
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.sm,
+    padding: space.md,
+    marginBottom: space.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.dangerSoft,
+  },
 });
