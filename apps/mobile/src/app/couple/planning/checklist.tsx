@@ -153,9 +153,9 @@ export default function Checklist() {
 
 const styles = StyleSheet.create({
   bar: { height: 3, backgroundColor: colors.line },
-  barFill: { height: 3, backgroundColor: colors.ink },
+  barFill: { height: 4, borderRadius: 2, backgroundColor: colors.accent },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md, borderBottomWidth: hairline, borderBottomColor: colors.line },
   check: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: colors.stoneDeep, alignItems: 'center', justifyContent: 'center' },
-  checkOn: { backgroundColor: colors.ink, borderColor: colors.ink },
+  checkOn: { backgroundColor: colors.accent, borderColor: colors.accent },
   strike: { textDecorationLine: 'line-through' },
 });

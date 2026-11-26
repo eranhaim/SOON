@@ -113,6 +113,6 @@ export default function Storefront() {
 }
 
 const styles = StyleSheet.create({
-  banner: { backgroundColor: colors.ink, paddingVertical: space.sm, paddingHorizontal: space.md },
+  banner: { backgroundColor: colors.accent, paddingVertical: space.sm, paddingHorizontal: space.md },
   back: { position: 'absolute', top: space.md },
 });

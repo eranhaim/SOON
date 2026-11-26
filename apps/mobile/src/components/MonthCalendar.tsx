@@ -105,8 +105,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row' },
   cell: { flex: 1, alignItems: 'center', paddingVertical: 2, minHeight: 44 },
   day: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  daySelected: { backgroundColor: colors.ink },
-  dayToday: { borderWidth: 1, borderColor: colors.ink },
+  daySelected: { backgroundColor: colors.accent },
+  dayToday: { borderWidth: 1.5, borderColor: colors.gold },
   dots: { flexDirection: 'row', gap: 2, height: 6, marginTop: 1 },
   dot: { width: 5, height: 5, borderRadius: 3, borderWidth: 1 },
 });

@@ -175,7 +175,7 @@ export default function Playlist() {
 
 const styles = StyleSheet.create({
   stage: { gap: 0 },
-  stageHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingBottom: space.sm, borderBottomWidth: 1, borderBottomColor: colors.ink },
+  stageHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingBottom: space.sm, borderBottomWidth: 1, borderBottomColor: colors.line },
   add: { borderRadius: 15, width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line },
   song: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.line },
   num: { fontFamily: fonts.displayLight, fontSize: 16, color: colors.inkMuted, width: 24 },

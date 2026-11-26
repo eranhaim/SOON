@@ -115,6 +115,6 @@ export default function CoupleOnboarding() {
 const styles = StyleSheet.create({
   progress: { flexDirection: 'row', gap: space.xs },
   seg: { flex: 1, height: 2, backgroundColor: colors.line },
-  segOn: { backgroundColor: colors.ink },
+  segOn: { backgroundColor: colors.accent },
   footer: { flexDirection: 'row', gap: space.md, marginTop: space.lg, borderTopWidth: hairline, borderTopColor: colors.line, paddingTop: space.lg },
 });

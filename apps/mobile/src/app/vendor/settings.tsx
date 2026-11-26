@@ -217,7 +217,7 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  sectionTitle: { paddingBottom: space.sm, borderBottomWidth: 1, borderBottomColor: colors.ink },
+  sectionTitle: { paddingBottom: space.sm, borderBottomWidth: 1, borderBottomColor: colors.line },
   toggle: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: 6 },
   track: { borderRadius: 13, width: 46, height: 26, padding: 3, borderWidth: 1, borderColor: colors.stoneDeep, backgroundColor: colors.surface, justifyContent: 'center' },
   trackOn: { backgroundColor: colors.accent, borderColor: colors.accent },

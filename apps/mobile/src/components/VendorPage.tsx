@@ -335,8 +335,8 @@ function Action({ icon, label, onPress, active }: { icon: IconName; label: strin
       disabled={!onPress}
       onPress={onPress}
       style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}>
-      <View style={[styles.actionIcon, active && { backgroundColor: colors.ink }]}>
-        <Feather name={icon} size={20} color={active ? colors.inverse : colors.ink} />
+      <View style={[styles.actionIcon, active && { backgroundColor: colors.accent }]}>
+        <Feather name={icon} size={20} color={active ? colors.inverse : colors.accent} />
       </View>
       <Text variant="caption" align="center">
         {label}
@@ -453,9 +453,9 @@ const styles = StyleSheet.create({
     paddingVertical: space.md,
   },
   action: { flex: 1, alignItems: 'center', gap: 6 },
-  actionIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  actionIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accentSoft },
   section: { gap: space.md },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingBottom: space.sm, borderBottomWidth: 1, borderBottomColor: colors.ink },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingBottom: space.sm, borderBottomWidth: 1, borderBottomColor: colors.line },
   edit: { borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: colors.line },
   placeholder: { borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.md, backgroundColor: colors.offWhite },
   pkg: { gap: space.sm, paddingVertical: space.sm, borderBottomWidth: 1, borderBottomColor: colors.line },
