@@ -26,14 +26,20 @@ const go = (url: string) => (Platform.OS === 'web' ? (window.location.href = url
  * monthly charge, and the charge history.
  */
 export default function Subscription() {
-  const { card: cardReturn } = useLocalSearchParams<{ card?: string }>();
+  const { card: cardReturn, paid: paidReturn } = useLocalSearchParams<{ card?: string; paid?: string }>();
   const qc = useQueryClient();
   const { reload } = useVendor();
   const q = useApiQuery<VendorBillingDTO>(BILLING_KEY, '/api/vendors/me/billing', {
     // Right after the card page the provider's notification may still be on its way.
-    refetchInterval: (query) => (cardReturn && !query.state.data?.card ? 3000 : false),
+    refetchInterval: (query) => {
+      const d = query.state.data;
+      if (cardReturn && !d?.card) return 3000;
+      if (paidReturn && d && !d.charges.some((c) => c.id === paidReturn && c.status !== 'pending')) return 3000;
+      return false;
+    },
   });
   const [busy, setBusy] = useState<string | null>(null);
+  const [now] = useState(() => Date.now());
 
   useEffect(() => {
     if (cardReturn && q.data?.card) notify('הכרטיס נשמר', `${q.data.card.brand ?? 'כרטיס'} ••••${q.data.card.last4 ?? ''}`);
@@ -41,6 +47,8 @@ export default function Subscription() {
 
   if (q.isPending || !q.data) return <Loading />;
   const b = q.data;
+  const returned = paidReturn ? b.charges.find((c) => c.id === paidReturn) : undefined;
+  const daysLeft = b.planActiveUntil ? Math.ceil((new Date(b.planActiveUntil).getTime() - now) / 86_400_000) : null;
   const active = effectivePlan(b.plan, b.planActiveUntil);
   const current = PLANS.find((p) => p.key === b.plan)!;
   const inTrial = b.plan !== 'basic' && b.planActiveUntil && !b.charges.some((c) => c.status === 'paid');
@@ -53,6 +61,19 @@ export default function Subscription() {
       await go(url);
     } catch (err) {
       notify('לא הצלחנו לפתוח את דף הכרטיס', errorMessage(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** Pay one month of `plan` on the payment page (when cards can't be saved). */
+  async function payMonth(plan?: PlanKey) {
+    setBusy(plan ?? 'pay');
+    try {
+      const { url } = await api<{ url: string }>('/api/vendors/me/billing/pay', { method: 'POST', json: plan ? { plan } : {} });
+      await go(url);
+    } catch (err) {
+      notify('לא הצלחנו לפתוח את דף התשלום', errorMessage(err));
     } finally {
       setBusy(null);
     }
@@ -71,7 +92,9 @@ export default function Subscription() {
       await Promise.all([qc.invalidateQueries({ queryKey: keys.account }), reload()]);
       notify('המסלול עודכן', `המסלול שלכם עכשיו ${target.name}.`);
     } catch (err) {
-      if (err instanceof ApiError && err.data.needsCard) {
+      if (err instanceof ApiError && err.data.needsPayment) {
+        if (await confirm('תשלום על החודש הראשון', `המסלול ${target.name} יופעל מיד אחרי התשלום (₪${target.priceMonthly}).`, 'לתשלום')) await payMonth(key);
+      } else if (err instanceof ApiError && err.data.needsCard) {
         if (await confirm('צריך כרטיס אשראי', 'כדי לשדרג, שמרו כרטיס אשראי. החיוב החודשי יתבצע ממנו.', 'שמירת כרטיס')) await saveCard();
       } else notify('שינוי המסלול נכשל', errorMessage(err));
     } finally {
@@ -102,7 +125,17 @@ export default function Subscription() {
         ) : null}
       </View>
 
-      <View style={styles.cardRow}>
+      {returned ? (
+        <View style={[styles.notice, returned.status === 'failed' && { backgroundColor: colors.dangerSoft }]}>
+          <Feather name={returned.status === 'paid' ? 'check-circle' : returned.status === 'failed' ? 'x-circle' : 'clock'} size={18} color={colors.accent} />
+          <Text variant="bodySmall" style={{ flex: 1 }}>
+            {returned.status === 'paid' ? 'התשלום התקבל. תודה!' : returned.status === 'failed' ? 'התשלום לא הושלם.' : 'מאשרים את התשלום…'}
+          </Text>
+        </View>
+      ) : null}
+
+      {b.canSaveCard ? (
+        <View style={styles.cardRow}>
         <Feather name="credit-card" size={20} color={colors.gold} />
         <View style={{ flex: 1, gap: 2 }}>
           <Text variant="label" style={{ fontFamily: fonts.bodyMedium }}>
@@ -114,6 +147,21 @@ export default function Subscription() {
         </View>
         <Button size="sm" variant={b.card ? 'ghost' : 'primary'} label={b.card ? 'החלפה' : 'שמירת כרטיס'} loading={busy === 'card'} onPress={saveCard} />
       </View>
+
+      ) : b.plan !== 'basic' ? (
+        <View style={styles.cardRow}>
+          <Feather name="credit-card" size={20} color={colors.gold} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text variant="label" style={{ fontFamily: fonts.bodyMedium }}>
+              {lapsed ? 'התקופה הסתיימה' : daysLeft != null ? `עוד ${Math.max(daysLeft, 0)} ימים בתקופה הנוכחית` : 'תשלום חודשי'}
+            </Text>
+            <Text variant="caption" color={colors.inkMuted}>
+              {`תשלום לחודש נוסף (₪${current.priceMonthly}) בדף התשלום המאובטח. החודש מתווסף לסוף התקופה.`}
+            </Text>
+          </View>
+          <Button size="sm" variant={lapsed || (daysLeft ?? 99) <= 7 ? 'primary' : 'ghost'} label="תשלום לחודש" loading={busy === 'pay'} onPress={() => payMonth()} />
+        </View>
+      ) : null}
 
       <SectionTitle>המסלולים</SectionTitle>
       {PLANS.map((p) => {
@@ -176,5 +224,6 @@ const styles = StyleSheet.create({
   planHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
   price: { fontFamily: fonts.display, fontSize: 24, lineHeight: 30, color: colors.ink },
   feature: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  notice: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.md, borderRadius: radius.md, backgroundColor: colors.accentSoft },
   charge: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.sm, borderBottomWidth: 1, borderBottomColor: colors.line },
 });

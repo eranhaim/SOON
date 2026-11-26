@@ -86,9 +86,7 @@ export default function Advisor() {
           {messages.map((m, i) => (
             <View key={i} style={[styles.bubbleRow, m.role === 'user' ? styles.rowMine : styles.rowTheirs]}>
               <View style={[styles.bubble, m.role === 'user' ? styles.mine : styles.theirs]}>
-                <Text variant="body" color={m.role === 'user' ? colors.inverse : colors.ink}>
-                  {m.content}
-                </Text>
+                <RichText text={m.content} color={m.role === 'user' ? colors.inverse : colors.ink} />
               </View>
             </View>
           ))}
@@ -110,6 +108,24 @@ export default function Advisor() {
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+/** Plain text with **bold** spans (the model sometimes still marks emphasis); drops heading marks. */
+function RichText({ text, color }: { text: string; color: string }) {
+  const parts = text.replace(/^#{1,6}\s*/gm, '').split(/\*\*(.+?)\*\*/g);
+  return (
+    <Text variant="body" color={color}>
+      {parts.map((p, i) =>
+        i % 2 === 1 ? (
+          <Text key={i} variant="body" color={color} style={{ fontFamily: fonts.bodyBold }}>
+            {p}
+          </Text>
+        ) : (
+          p
+        ),
+      )}
+    </Text>
   );
 }
 

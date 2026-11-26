@@ -13,7 +13,7 @@ import { db } from '../db';
 import { vendor, vendorCharge, vendorPaymentMethod } from '../db/schema';
 import { env } from '../env';
 import { parseBody, requireOwnVendor } from '../session';
-import { chargeToken, createCardSetup, payments, refOf } from '../services/payments';
+import { chargeToken, createCardSetup, createCheckout, payments, refOf } from '../services/payments';
 
 const PUBLIC_URL = env.BETTER_AUTH_URL.replace(/\/$/, '');
 const PERIOD_MS = 30 * 86_400_000;
@@ -38,6 +38,7 @@ async function billingOf(vendorId: string): Promise<VendorBillingDTO> {
       error: c.error,
     })),
     paymentsLive: payments.live,
+    canSaveCard: payments.supportsTokens,
   };
 }
 
@@ -113,7 +114,7 @@ export async function renewIfDue(vendorId: string, log: FastifyBaseLogger, opts:
 
 /** Hourly: renew every paid plan that is due (card saved, period ending). */
 export function startRenewals(log: FastifyBaseLogger) {
-  if (!payments.available) return () => undefined;
+  if (!payments.supportsTokens) return () => undefined;
   const run = async () => {
     const due = await db
       .select({ id: vendor.id })
@@ -139,11 +140,61 @@ export async function billingRoutes(app: FastifyInstance) {
     return billingOf(ctx.vendor.id);
   });
 
+  /**
+   * Pay one month of a plan on the payment page (when cards can't be saved). Reuses a fresh
+   * unpaid charge for the same plan, so going back and forth doesn't pile up charges.
+   */
+  app.post('/api/vendors/me/billing/pay', async (request, reply) => {
+    const ctx = await requireOwnVendor(request, reply);
+    if (!ctx) return;
+    if (!payments.available) return reply.status(503).send({ error: 'התשלומים עוד לא פעילים' });
+    const b = await parseBody(z.object({ plan: z.enum(['pro', 'premium']).optional() }), request.body ?? {}, reply);
+    if (!b) return;
+    const plan = (b.plan ?? ctx.vendor.plan) as PlanKey;
+    if (plan === 'basic') return reply.status(400).send({ error: 'מסלול Basic חינמי' });
+    const amount = priceAgorot(plan);
+    const [open] = await db
+      .select()
+      .from(vendorCharge)
+      .where(
+        and(
+          eq(vendorCharge.vendorId, ctx.vendor.id),
+          eq(vendorCharge.status, 'pending'),
+          eq(vendorCharge.plan, plan),
+          gte(vendorCharge.createdAt, new Date(Date.now() - 30 * 60_000)),
+        ),
+      )
+      .orderBy(desc(vendorCharge.createdAt))
+      .limit(1);
+    const start = Math.max(Date.now(), ctx.vendor.planActiveUntil?.getTime() ?? 0);
+    const charge =
+      open ??
+      (
+        await db
+          .insert(vendorCharge)
+          .values({ vendorId: ctx.vendor.id, plan, amountAgorot: amount, provider: payments.provider, periodEnd: new Date(start + PERIOD_MS) })
+          .returning()
+      )[0]!;
+    try {
+      const { url } = await createCheckout({
+        kind: 'charge',
+        id: charge.id,
+        amountAgorot: charge.amountAgorot,
+        description: `מנוי SOON ${PLANS.find((p) => p.key === plan)?.name} · ${ctx.vendor.businessName}`,
+        returnUrl: `${PUBLIC_URL}/vendor/subscription?paid=${charge.id}`,
+      });
+      return { url };
+    } catch (err) {
+      request.log.error({ err }, 'plan checkout failed');
+      return reply.status(502).send({ error: 'לא הצלחנו לפתוח את דף התשלום. נסו שוב בעוד רגע.' });
+    }
+  });
+
   /** Hosted page to save (or replace) the card for the monthly charge. */
   app.post('/api/vendors/me/billing/card', async (request, reply) => {
     const ctx = await requireOwnVendor(request, reply);
     if (!ctx) return;
-    if (!payments.available) return reply.status(503).send({ error: 'התשלומים עוד לא פעילים' });
+    if (!payments.supportsTokens) return reply.status(400).send({ error: 'שמירת כרטיס לא זמינה. אפשר לשלם לכל חודש בדף התשלום.' });
     try {
       return await createCardSetup({ kind: 'card', id: ctx.vendor.id, returnUrl: `${PUBLIC_URL}/vendor/subscription?card=1` });
     } catch (err) {
@@ -178,6 +229,7 @@ export async function billingRoutes(app: FastifyInstance) {
         .where(eq(vendor.id, v.id));
       return billingOf(v.id);
     }
+    if (!payments.supportsTokens) return reply.status(402).send({ error: 'כדי לשדרג, משלמים על החודש הראשון', needsPayment: true });
     const hasCard = await db.$count(vendorPaymentMethod, eq(vendorPaymentMethod.vendorId, v.id));
     if (!hasCard) return reply.status(402).send({ error: 'כדי לשדרג צריך לשמור כרטיס אשראי', needsCard: true });
     const result = await chargePlan(v.id, b.plan, request.log);

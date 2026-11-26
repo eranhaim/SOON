@@ -17,7 +17,6 @@ import { Logo } from '@/components/Logo';
 import { Loading, Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { VendorCard } from '@/components/VendorCard';
-import { WelcomeTour } from '@/components/WelcomeTour';
 import { SectionTitle } from '@/components/ui';
 import { formatDateTime, formatDayDots } from '@/lib/dates';
 import { keys, useApiQuery } from '@/lib/query';
@@ -185,7 +184,6 @@ export default function CoupleHome() {
         </View>
       </ScrollView>
 
-      <WelcomeTour side="couple" />
       <CoverPicker visible={coverOpen} onClose={() => setCoverOpen(false)} current={w.coverImageUrl} />
     </View>
   );

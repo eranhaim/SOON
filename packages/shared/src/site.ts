@@ -208,4 +208,6 @@ export type VendorBillingDTO = {
   charges: { id: string; plan: string; amountAgorot: number; status: 'pending' | 'paid' | 'failed'; createdAt: string; error: string | null }[];
   /** false = test mode (no real money moves). */
   paymentsLive: boolean;
+  /** Cards can be saved for automatic monthly charges; otherwise each month is paid on a payment page. */
+  canSaveCard: boolean;
 };

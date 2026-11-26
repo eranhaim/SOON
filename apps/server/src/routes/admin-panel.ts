@@ -23,6 +23,7 @@ import { db } from '../db';
 import { appSetting, invitationTemplate, session as sessionTable, user } from '../db/schema';
 import { badRequest, conflict, isUuid, notFound } from '../http';
 import { parseBody, requireAdmin } from '../session';
+import { checkUpayLogin, payments } from '../services/payments';
 import { giftFeeBps, toTemplateDTO } from './wedding-site';
 
 export async function adminPanelRoutes(app: FastifyInstance) {
@@ -218,6 +219,14 @@ export async function adminPanelRoutes(app: FastifyInstance) {
     if (!isUuid(request.params.id)) return notFound(reply);
     await db.delete(invitationTemplate).where(eq(invitationTemplate.id, request.params.id));
     return { ok: true };
+  });
+
+  // ===== payments status =====
+  /** Which payment mode runs, and (API mode) whether the Upay login works. No money moves. */
+  app.get('/api/admin/payments', async (request, reply) => {
+    if (!(await requireAdmin(request, reply))) return;
+    const login = payments.mode === 'api' ? await checkUpayLogin() : null;
+    return { mode: payments.mode, live: payments.live, supportsTokens: payments.supportsTokens, login };
   });
 
   // ===== settings =====

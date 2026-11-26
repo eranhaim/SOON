@@ -7,6 +7,7 @@ import { formatHebrewDate } from '@soon/shared';
 import { Button } from '@/components/Button';
 import { CountBadge } from '@/components/CountBadge';
 import { CoverPicker } from '@/components/CoverPicker';
+import { resetGuides } from '@/components/GuideHost';
 import { PressableScale, Reveal } from '@/components/motion';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
@@ -81,6 +82,15 @@ export default function Profile() {
           />
           <ListRow icon="camera" label="תמונת רקע" hint="החליפו את התמונה במסך הבית" onPress={() => setCoverOpen(true)} />
           <ListRow icon="users" label="קהילת זוגות" hint="התייעצו עם זוגות אחרים שמתחתנים" onPress={() => router.push('/couple/community' as Href)} />
+          <ListRow
+            icon="compass"
+            label="הצגת המדריכים מחדש"
+            hint="ההסבר הקצר שמופיע בכל מסך בפעם הראשונה"
+            onPress={async () => {
+              if (user) await resetGuides(user.id);
+              notify('המדריכים יוצגו שוב', 'בכל מסך שתפתחו.');
+            }}
+          />
           <ListRow
             icon="message-circle"
             label="הודעות"

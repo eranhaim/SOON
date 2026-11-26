@@ -11,6 +11,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { DialogHost } from '@/components/DialogHost';
+import { GuideHost } from '@/components/GuideHost';
 import { LangProvider } from '@/lib/lang';
 import { QueryProvider } from '@/lib/query';
 import { colors } from '@/theme/tokens';
@@ -48,6 +50,8 @@ export default function RootLayout() {
           }}>
           <Stack.Screen name="index" options={{ contentStyle: { backgroundColor: colors.night } }} />
         </Stack>
+        <GuideHost />
+        <DialogHost />
       </LangProvider>
     </QueryProvider>
   );

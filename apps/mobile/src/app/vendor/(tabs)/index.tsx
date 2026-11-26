@@ -8,7 +8,6 @@ import { PressableScale, Reveal, useCountUp } from '@/components/motion';
 import { Screen } from '@/components/Screen';
 import { Sparkline } from '@/components/Sparkline';
 import { Text } from '@/components/Text';
-import { WelcomeTour } from '@/components/WelcomeTour';
 import { VendorStatusCard } from '@/components/VendorStatusCard';
 import { SectionTitle, type IconName } from '@/components/ui';
 import { formatDateTime, formatDayDots, formatToday, greeting } from '@/lib/dates';
@@ -174,7 +173,6 @@ export default function VendorDashboard() {
           </View>
         </>
       ) : null}
-      <WelcomeTour side="vendor" />
     </Screen>
   );
 }

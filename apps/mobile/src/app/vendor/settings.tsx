@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { DEFAULT_MATCH_CALLS, NOTIFICATION_KINDS, type MatchCallSettings, type NotificationKind, type VendorAccountDTO } from '@soon/shared';
 
 import { Button } from '@/components/Button';
+import { resetGuides } from '@/components/GuideHost';
 import { LangSwitch } from '@/components/LangSwitch';
 import { Loading, Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
@@ -139,6 +140,18 @@ export default function Settings() {
         <TextField label="סיסמה נוכחית" ltr secureTextEntry value={pw.current} onChangeText={(current) => setPw({ ...pw, current })} />
         <TextField label="סיסמה חדשה" ltr secureTextEntry value={pw.next} onChangeText={(next) => setPw({ ...pw, next })} />
         <Button label="שינוי סיסמה" variant="outline" loading={pwBusy} disabled={!pw.current || !pw.next} onPress={changePassword} />
+      </Section>
+
+      <Section title="מדריכים">
+        <Button
+          variant="outline"
+          icon="compass"
+          label="הצגת המדריכים מחדש"
+          onPress={async () => {
+            if (user) await resetGuides(user.id);
+            notify('המדריכים יוצגו שוב', 'בכל מסך שתפתחו.');
+          }}
+        />
       </Section>
 
       <Section title="שפה והעדפות">

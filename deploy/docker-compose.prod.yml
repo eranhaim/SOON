@@ -38,6 +38,7 @@ services:
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       DEMO_TOOLS: ${DEMO_TOOLS:-false}
       UPAY_EMAIL: ${UPAY_EMAIL:-}
+      UPAY_PASSWORD: ${UPAY_PASSWORD:-}
       UPAY_KEY: ${UPAY_KEY:-}
       UPAY_DEMO: ${UPAY_DEMO:-false}
       PAYMENTS_TEST_MODE: ${PAYMENTS_TEST_MODE:-true}

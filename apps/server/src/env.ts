@@ -30,6 +30,8 @@ const envSchema = z.object({
   DEMO_TOOLS: flag,
   /** Upay (Israeli card clearing). Without both, payments run in test mode (no real money). */
   UPAY_EMAIL: optional,
+  /** Upay account password (API mode: server-to-server payment pages, saved cards). */
+  UPAY_PASSWORD: optional,
   UPAY_KEY: optional,
   /** Use Upay's demo system (demo.upay.co.il). */
   UPAY_DEMO: flag,
